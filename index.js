@@ -9,15 +9,25 @@ var scServer = socketCluster.attach(httpServer);
 var serverInstances = {};
 var clientInstances = {};
 
-var checkClientStatesConvergence = function (instances) {
+var serverLeaveCluster = function (socket, respond) {
+  delete serverInstances[socket.instanceId];
+  respond && respond();
+};
+
+var clientLeaveCluster = function (socket, respond) {
+  delete clientInstances[socket.instanceId];
+  respond && respond();
+};
+
+var checkClientStatesConvergence = function (socketList) {
   var prevInstanceState = null;
   var allStatesEqual = true;
-  _.forEach(instances, function (instanceData) {
-    if (prevInstanceState && prevInstanceState != instanceData.state) {
+  _.forEach(socketList, function (socket) {
+    if (prevInstanceState && prevInstanceState != socket.instanceState) {
       allStatesEqual = false;
       return;
     }
-    prevInstanceState = instanceData.state;
+    prevInstanceState = socket.instanceState;
   });
   return allStatesEqual;
 };
@@ -25,39 +35,44 @@ var checkClientStatesConvergence = function (instances) {
 // TODO: Whenever an instance does not acknowledge the receipt of the event, retry with exponential backoff
 var sendEventToAllInstances = function (instances, event, data) {
   _.forEach(instances, function (instanceData) {
-    instanceData.socket.emit(event, data);
+    instanceData.emit(event, data);
   });
 };
 
 scServer.on('connection', function (socket) {
   socket.on('serverJoinCluster', function (data, respond) {
-    serverInstances[data && data.instanceId] = {
-      socket: socket
-    };
+    socket.instanceType = 'server';
+    socket.instanceId = data.instanceId;
+    serverInstances[data.instanceId] = socket;
     sendEventToAllInstances(clientInstances, 'clusterAddServer', data);
     respond();
   });
-  socket.on('serverLeaveCluster', function (data, respond) {
-    delete serverInstances[data && data.instanceId];
-    respond();
+  socket.on('serverLeaveCluster', function (respond) {
+    serverLeaveCluster(socket, respond);
   });
   socket.on('clientJoinCluster', function (data, respond) {
-    clientInstances[data && data.instanceId] = {
-      socket: socket
-    };
+    socket.instanceType = 'client';
+    socket.instanceId = data.instanceId;
+    clientInstances[data.instanceId] = socket;
     respond();
   });
-  socket.on('clientLeaveCluster', function (data, respond) {
-    delete clientInstances[data && data.instanceId];
-    respond();
+  socket.on('clientLeaveCluster', function (respond) {
+    clientLeaveCluster(socket, respond);
   });
   socket.on('clientSetState', function (data, respond) {
-    clientInstances[data.instanceId].state = data.state;
+    socket.instanceState = data.instanceState;
     var clientStatesConverge = checkClientStatesConvergence(clientInstances);
     if (clientStatesConverge) {
-      sendEventToAllInstances(clientInstances, 'clientStatesConverge', {state: data.state});
+      sendEventToAllInstances(clientInstances, 'clientStatesConverge', {instanceState: socket.instanceState});
     }
     respond();
+  });
+  socket.on('disconnect', function () {
+    if (socket.instanceType == 'server') {
+      serverLeaveCluster(socket);
+    } else if (socket.instanceType == 'client') {
+      clientLeaveCluster(socket);
+    }
   });
 });
 

@@ -1,5 +1,5 @@
 {
-  "name": "sc-cluster-state-engine",
+  "name": "sc-cluster-state-server",
   "version": "1.0.0",
   "description": "Cluster state tracking and notification engine for SocketCluster clusters.",
   "main": "index.js",
@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/SocketCluster/sc-cluster-state-engine.git"
+    "url": "https://github.com/SocketCluster/sc-cluster-state-server.git"
   },
   "keywords": [
     "Cluster",
@@ -19,9 +19,9 @@
   "author": "Jonathan Gros-Dubois",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/SocketCluster/sc-cluster-state-engine/issues"
+    "url": "https://github.com/SocketCluster/sc-cluster-state-server/issues"
   },
-  "homepage": "https://github.com/SocketCluster/sc-cluster-state-engine",
+  "homepage": "https://github.com/SocketCluster/sc-cluster-state-server",
   "dependencies": {
     "lodash": "4.13.1",
     "socketcluster-server": "4.2.2"
