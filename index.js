@@ -3,6 +3,8 @@ var argv = require('minimist')(process.argv.slice(2));
 var http = require('http');
 var socketCluster = require('socketcluster-server');
 
+var RETRY_DELAY = 2000;
+
 var httpServer = http.createServer();
 var scServer = socketCluster.attach(httpServer);
 
@@ -32,10 +34,17 @@ var checkClientStatesConvergence = function (socketList) {
   return allStatesEqual;
 };
 
-// TODO: Whenever an instance does not acknowledge the receipt of the event, retry with exponential backoff
+var sendEventToInstance = function (socket, event, data) {
+  socket.emit(event, data, function (err) {
+    if (err && socket.state == 'open') {
+      setTimeout(sendEventToInstance.bind(null, socket, event, data), RETRY_DELAY);
+    }
+  });
+};
+
 var sendEventToAllInstances = function (instances, event, data) {
-  _.forEach(instances, function (instanceData) {
-    instanceData.emit(event, data);
+  _.forEach(instances, function (socket) {
+    sendEventToInstance(socket, event, data);
   });
 };
 
