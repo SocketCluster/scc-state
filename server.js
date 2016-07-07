@@ -4,15 +4,25 @@ var http = require('http');
 var socketCluster = require('socketcluster-server');
 
 var RETRY_DELAY = 2000;
+var DEFAULT_PORT = 7777;
 
+var port = Number(argv.p) || DEFAULT_PORT;
 var httpServer = http.createServer();
 var scServer = socketCluster.attach(httpServer);
 
 var serverInstances = {};
 var clientInstances = {};
 
+var getServerClusterState = function () {
+  return {
+    serverInstances: serverInstances,
+    time: Date.now()
+  };
+};
+
 var serverLeaveCluster = function (socket, respond) {
   delete serverInstances[socket.instanceId];
+  sendEventToAllInstances(clientInstances, 'serverLeaveCluster', getServerClusterState());
   respond && respond();
 };
 
@@ -53,7 +63,7 @@ scServer.on('connection', function (socket) {
     socket.instanceType = 'server';
     socket.instanceId = data.instanceId;
     serverInstances[data.instanceId] = socket;
-    sendEventToAllInstances(clientInstances, 'clusterAddServer', data);
+    sendEventToAllInstances(clientInstances, 'serverJoinCluster', getServerClusterState());
     respond();
   });
   socket.on('serverLeaveCluster', function (respond) {
@@ -63,7 +73,7 @@ scServer.on('connection', function (socket) {
     socket.instanceType = 'client';
     socket.instanceId = data.instanceId;
     clientInstances[data.instanceId] = socket;
-    respond();
+    respond(null, getServerClusterState());
   });
   socket.on('clientLeaveCluster', function (respond) {
     clientLeaveCluster(socket, respond);
@@ -72,7 +82,7 @@ scServer.on('connection', function (socket) {
     socket.instanceState = data.instanceState;
     var clientStatesConverge = checkClientStatesConvergence(clientInstances);
     if (clientStatesConverge) {
-      sendEventToAllInstances(clientInstances, 'clientStatesConverge', {instanceState: socket.instanceState});
+      sendEventToAllInstances(clientInstances, 'clientStatesConverge', {state: socket.instanceState});
     }
     respond();
   });
@@ -85,4 +95,4 @@ scServer.on('connection', function (socket) {
   });
 });
 
-httpServer.listen(8000);
+httpServer.listen(port);

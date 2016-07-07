@@ -2,7 +2,7 @@
   "name": "sc-cluster-state-server",
   "version": "1.0.0",
   "description": "Cluster state tracking and notification engine for SocketCluster clusters.",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
