@@ -10,10 +10,14 @@ var port = Number(argv.p) || DEFAULT_PORT;
 var httpServer = http.createServer();
 var scServer = socketCluster.attach(httpServer);
 
-var serverInstances = {};
-var clientInstances = {};
+var serverInstanceSockets = {};
+var clientInstanceSockets = {};
 
 var getServerClusterState = function () {
+  var serverInstances = [];
+  _.forOwn(serverInstanceSockets, function (socket, serverURI) {
+    serverInstances.push(serverURI);
+  });
   return {
     serverInstances: serverInstances,
     time: Date.now()
@@ -21,13 +25,13 @@ var getServerClusterState = function () {
 };
 
 var serverLeaveCluster = function (socket, respond) {
-  delete serverInstances[socket.instanceId];
-  sendEventToAllInstances(clientInstances, 'serverLeaveCluster', getServerClusterState());
+  delete serverInstanceSockets[socket.instanceId];
+  sendEventToAllInstances(clientInstanceSockets, 'serverLeaveCluster', getServerClusterState());
   respond && respond();
 };
 
 var clientLeaveCluster = function (socket, respond) {
-  delete clientInstances[socket.instanceId];
+  delete clientInstanceSockets[socket.instanceId];
   respond && respond();
 };
 
@@ -62,8 +66,8 @@ scServer.on('connection', function (socket) {
   socket.on('serverJoinCluster', function (data, respond) {
     socket.instanceType = 'server';
     socket.instanceId = data.instanceId;
-    serverInstances[data.instanceId] = socket;
-    sendEventToAllInstances(clientInstances, 'serverJoinCluster', getServerClusterState());
+    serverInstanceSockets[data.instanceId] = socket;
+    sendEventToAllInstances(clientInstanceSockets, 'serverJoinCluster', getServerClusterState());
     respond();
   });
   socket.on('serverLeaveCluster', function (respond) {
@@ -72,7 +76,7 @@ scServer.on('connection', function (socket) {
   socket.on('clientJoinCluster', function (data, respond) {
     socket.instanceType = 'client';
     socket.instanceId = data.instanceId;
-    clientInstances[data.instanceId] = socket;
+    clientInstanceSockets[data.instanceId] = socket;
     respond(null, getServerClusterState());
   });
   socket.on('clientLeaveCluster', function (respond) {
@@ -80,9 +84,9 @@ scServer.on('connection', function (socket) {
   });
   socket.on('clientSetState', function (data, respond) {
     socket.instanceState = data.instanceState;
-    var clientStatesConverge = checkClientStatesConvergence(clientInstances);
+    var clientStatesConverge = checkClientStatesConvergence(clientInstanceSockets);
     if (clientStatesConverge) {
-      sendEventToAllInstances(clientInstances, 'clientStatesConverge', {state: socket.instanceState});
+      sendEventToAllInstances(clientInstanceSockets, 'clientStatesConverge', {state: socket.instanceState});
     }
     respond();
   });
