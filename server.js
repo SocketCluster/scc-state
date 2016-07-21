@@ -87,6 +87,9 @@ var sendEventToAllInstances = function (instances, event, data) {
 };
 
 scServer.on('connection', function (socket) {
+  socket.on('error', (err) => {
+    console.error(err);
+  });
   socket.on('serverJoinCluster', function (data, respond) {
     socket.instanceType = 'server';
     socket.instanceId = data.instanceId;
