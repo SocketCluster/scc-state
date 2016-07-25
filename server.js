@@ -2,13 +2,15 @@ var _ = require('lodash');
 var argv = require('minimist')(process.argv.slice(2));
 var http = require('http');
 var socketCluster = require('socketcluster-server');
+var url = require('url');
 
 var DEFAULT_PORT = 7777;
 var DEFAULT_CLUSTER_SCALE_DELAY = 5000;
 
-var RETRY_DELAY = Number(argv.r) || Number(process.env.SC_CLUSTER_STATE_SERVER_RETRY_DELAY) || 2000;
-var PORT = Number(argv.p) || Number(process.env.SC_CLUSTER_STATE_SERVER_PORT) || DEFAULT_PORT;
-var CLUSTER_SCALE_DELAY = Number(argv.d) || Number(process.env.SC_CLUSTER_STATE_SERVER_SCALE_DELAY) || DEFAULT_CLUSTER_SCALE_DELAY;
+var RETRY_DELAY = Number(argv.r) || Number(process.env.SCC_STATE_SERVER_RETRY_DELAY) || 2000;
+var PORT = Number(argv.p) || Number(process.env.SCC_STATE_SERVER_PORT) || DEFAULT_PORT;
+var CLUSTER_SCALE_DELAY = Number(argv.d) || Number(process.env.SCC_STATE_SERVER_SCALE_DELAY) || DEFAULT_CLUSTER_SCALE_DELAY;
+var AUTH_KEY = process.env.SCC_AUTH_KEY || null;
 
 var httpServer = http.createServer();
 var scServer = socketCluster.attach(httpServer);
@@ -85,6 +87,27 @@ var sendEventToAllInstances = function (instances, event, data) {
     sendEventToInstance(socket, event, data);
   });
 };
+
+scServer.on('error', function (err) {
+  console.error(err);
+});
+
+scServer.on('warning', function (err) {
+  console.warn(err);
+});
+
+if (AUTH_KEY) {
+  scServer.addMiddleware(scServer.MIDDLEWARE_HANDSHAKE, (req, next) => {
+    var urlParts = url.parse(req.url, true);
+    if (urlParts.query && urlParts.query.authKey == AUTH_KEY) {
+      next();
+    } else {
+      var err = new Error('Cannot connect to the cluster state server without providing a valid authKey as a URL query argument.');
+      err.name = 'BadClusterAuthError';
+      next(err);
+    }
+  });
+}
 
 scServer.on('connection', function (socket) {
   socket.on('error', (err) => {
