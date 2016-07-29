@@ -22,7 +22,13 @@ var getServerClusterState = function () {
   var serverInstances = [];
   _.forOwn(serverInstanceSockets, function (socket) {
     var targetProtocol = socket.instanceSecure ? 'wss' : 'ws';
-    var serverURI = `${targetProtocol}://[${socket.instanceIp}]:${socket.instancePort}`;
+    var instanceIp;
+    if (socket.instanceIpFamily == 'IPv4') {
+      instanceIp = socket.instanceIp;
+    } else {
+      instanceIp = `[${socket.instanceIp}]`;
+    }
+    var serverURI = `${targetProtocol}://${instanceIp}:${socket.instancePort}`;
     serverInstances.push(serverURI);
   });
   return {
@@ -117,6 +123,9 @@ scServer.on('connection', function (socket) {
     socket.instanceType = 'server';
     socket.instanceId = data.instanceId;
     socket.instanceIp = data.instanceIp || socket.remoteAddress;
+    if (data.instanceIp) {
+      socket.instanceIpFamily = data.instanceIpFamily;
+    }
     socket.instancePort = data.instancePort;
     socket.instanceSecure = data.instanceSecure;
     serverInstanceSockets[data.instanceId] = socket;
