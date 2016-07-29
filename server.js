@@ -22,7 +22,7 @@ var getServerClusterState = function () {
   var serverInstances = [];
   _.forOwn(serverInstanceSockets, function (socket) {
     var targetProtocol = socket.instanceSecure ? 'wss' : 'ws';
-    var serverURI = `${targetProtocol}://[${socket.remoteAddress}]:${socket.instancePort}`;
+    var serverURI = `${targetProtocol}://[${socket.instanceIp}]:${socket.instancePort}`;
     serverInstances.push(serverURI);
   });
   return {
@@ -49,13 +49,13 @@ var serverLeaveCluster = function (socket, respond) {
   });
 
   respond && respond();
-  console.log(`Sever ${socket.instanceId} at address ${socket.remoteAddress} on port ${socket.instancePort} left the cluster`);
+  console.log(`Sever ${socket.instanceId} at address ${socket.instanceIp} on port ${socket.instancePort} left the cluster`);
 };
 
 var clientLeaveCluster = function (socket, respond) {
   delete clientInstanceSockets[socket.instanceId];
   respond && respond();
-  console.log(`Client ${socket.instanceId} at address ${socket.remoteAddress} left the cluster`);
+  console.log(`Client ${socket.instanceId} at address ${socket.instanceIp} left the cluster`);
 };
 
 var checkClientStatesConvergence = function (socketList) {
@@ -116,6 +116,7 @@ scServer.on('connection', function (socket) {
   socket.on('serverJoinCluster', function (data, respond) {
     socket.instanceType = 'server';
     socket.instanceId = data.instanceId;
+    socket.instanceIp = data.instanceIp || socket.remoteAddress;
     socket.instancePort = data.instancePort;
     socket.instanceSecure = data.instanceSecure;
     serverInstanceSockets[data.instanceId] = socket;
@@ -125,7 +126,7 @@ scServer.on('connection', function (socket) {
     });
 
     respond();
-    console.log(`Sever ${data.instanceId} at address ${socket.remoteAddress} on port ${socket.instancePort} joined the cluster`);
+    console.log(`Sever ${data.instanceId} at address ${socket.instanceIp} on port ${socket.instancePort} joined the cluster`);
   });
   socket.on('serverLeaveCluster', function (respond) {
     serverLeaveCluster(socket, respond);
@@ -133,9 +134,10 @@ scServer.on('connection', function (socket) {
   socket.on('clientJoinCluster', function (data, respond) {
     socket.instanceType = 'client';
     socket.instanceId = data.instanceId;
+    socket.instanceIp = data.instanceIp || socket.remoteAddress;
     clientInstanceSockets[data.instanceId] = socket;
     respond(null, getServerClusterState());
-    console.log(`Client ${data.instanceId} at address ${socket.remoteAddress} joined the cluster`);
+    console.log(`Client ${data.instanceId} at address ${socket.instanceIp} joined the cluster`);
   });
   socket.on('clientLeaveCluster', function (respond) {
     clientLeaveCluster(socket, respond);
