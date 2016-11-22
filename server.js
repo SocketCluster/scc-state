@@ -15,6 +15,16 @@ var AUTH_KEY = process.env.SCC_AUTH_KEY || null;
 var httpServer = http.createServer();
 var scServer = socketCluster.attach(httpServer);
 
+httpServer.on('request', function (req, res) {
+  if (req.url == '/health-check') {
+    res.writeHead(200, {'Content-Type': 'text/html'});
+    res.end('OK');
+  } else {
+    res.writeHead(404, {'Content-Type': 'text/html'});
+    res.end('Not found');
+  }
+});
+
 var serverInstanceSockets = {};
 var clientInstanceSockets = {};
 
