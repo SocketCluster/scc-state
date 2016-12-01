@@ -65,7 +65,7 @@ var serverLeaveCluster = function (socket, respond) {
   });
 
   respond && respond();
-  console.log(`Sever ${socket.instanceId} at address ${socket.instanceIp} on port ${socket.instancePort} left the cluster`);
+  console.log(`Server ${socket.instanceId} at address ${socket.instanceIp} on port ${socket.instancePort} left the cluster`);
 };
 
 var clientLeaveCluster = function (socket, respond) {
@@ -145,7 +145,7 @@ scServer.on('connection', function (socket) {
     });
 
     respond();
-    console.log(`Sever ${data.instanceId} at address ${socket.instanceIp} on port ${socket.instancePort} joined the cluster`);
+    console.log(`Server ${data.instanceId} at address ${socket.instanceIp} on port ${socket.instancePort} joined the cluster`);
   });
   socket.on('serverLeaveCluster', function (respond) {
     serverLeaveCluster(socket, respond);
