@@ -1,6 +1,6 @@
 {
   "name": "scc-state",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Cluster state tracking and notification engine for SocketCluster clusters.",
   "main": "server.js",
   "scripts": {
@@ -11,10 +11,10 @@
     "url": "https://github.com/SocketCluster/scc-state.git"
   },
   "keywords": [
-    "Cluster",
-    "State",
-    "Distributed",
-    "Engine"
+    "cluster",
+    "state",
+    "distributed",
+    "engine"
   ],
   "author": "Jonathan Gros-Dubois",
   "license": "MIT",
@@ -25,6 +25,6 @@
   "dependencies": {
     "lodash": "4.13.1",
     "minimist": "1.2.0",
-    "socketcluster-server": "~6.1.0"
+    "socketcluster-server": "~6.3.0"
   }
 }
