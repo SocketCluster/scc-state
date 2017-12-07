@@ -25,6 +25,6 @@
   "dependencies": {
     "lodash": "4.13.1",
     "minimist": "1.2.0",
-    "socketcluster-server": "~7.0.2"
+    "socketcluster-server": "~9.1.1"
   }
 }
