@@ -11,6 +11,7 @@ var RETRY_DELAY = Number(argv.r) || Number(process.env.SCC_STATE_SERVER_RETRY_DE
 var PORT = Number(argv.p) || Number(process.env.SCC_STATE_SERVER_PORT) || DEFAULT_PORT;
 var CLUSTER_SCALE_DELAY = Number(argv.d) || Number(process.env.SCC_STATE_SERVER_SCALE_DELAY) || DEFAULT_CLUSTER_SCALE_DELAY;
 var AUTH_KEY = process.env.SCC_AUTH_KEY || null;
+var FORWARDED_FOR_HEADER = process.env.FORWARDED_FOR_HEADER || null;
 
 var httpServer = http.createServer();
 var scServer = socketCluster.attach(httpServer);
@@ -104,6 +105,11 @@ var sendEventToAllInstances = function (instances, event, data) {
   });
 };
 
+var getRemoteIp = function(socket, data) {
+  var forwardedAddress = FORWARDED_FOR_HEADER ? (socket.request.headers[FORWARDED_FOR_HEADER] || '').split(',')[0] : null;
+  return data.instanceIp || forwardedAddress || socket.remoteAddress;
+};
+
 scServer.on('error', function (err) {
   console.error(err);
 });
@@ -132,7 +138,7 @@ scServer.on('connection', function (socket) {
   socket.on('serverJoinCluster', function (data, respond) {
     socket.instanceType = 'server';
     socket.instanceId = data.instanceId;
-    socket.instanceIp = data.instanceIp || socket.remoteAddress;
+    socket.instanceIp = getRemoteIp(socket, data);
     if (data.instanceIp) {
       socket.instanceIpFamily = data.instanceIpFamily;
     }
@@ -153,7 +159,7 @@ scServer.on('connection', function (socket) {
   socket.on('clientJoinCluster', function (data, respond) {
     socket.instanceType = 'client';
     socket.instanceId = data.instanceId;
-    socket.instanceIp = data.instanceIp || socket.remoteAddress;
+    socket.instanceIp = getRemoteIp(socket, data);
     clientInstanceSockets[data.instanceId] = socket;
     respond(null, getServerClusterState());
     console.log(`Client ${data.instanceId} at address ${socket.instanceIp} joined the cluster`);
