@@ -1,6 +1,6 @@
 {
   "name": "scc-state",
-  "version": "1.7.2",
+  "version": "1.7.1",
   "description": "Cluster state tracking and notification engine for SocketCluster clusters.",
   "main": "server.js",
   "scripts": {
