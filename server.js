@@ -12,6 +12,16 @@ var PORT = Number(argv.p) || Number(process.env.SCC_STATE_SERVER_PORT) || DEFAUL
 var CLUSTER_SCALE_DELAY = Number(argv.d) || Number(process.env.SCC_STATE_SERVER_SCALE_DELAY) || DEFAULT_CLUSTER_SCALE_DELAY;
 var AUTH_KEY = process.env.SCC_AUTH_KEY || null;
 var FORWARDED_FOR_HEADER = process.env.FORWARDED_FOR_HEADER || null;
+/**
+ * Log levels:
+ * 3 - log everything
+ * 2 - warnings and errors
+ * 1 - errors only
+ * 0 - log nothing
+ */
+var LOG_LEVEL = (typeof argv.l !== 'undefined') ?
+  Number(argv.l) : (typeof process.env.SCC_STATE_LOG_LEVEL !== 'undefined') ?
+  Number(process.env.SCC_STATE_LOG_LEVEL) : 1;
 
 var httpServer = http.createServer();
 var scServer = socketCluster.attach(httpServer);
@@ -66,13 +76,13 @@ var serverLeaveCluster = function (socket, respond) {
   });
 
   respond && respond();
-  console.log(`Server ${socket.instanceId} at address ${socket.instanceIp} on port ${socket.instancePort} left the cluster`);
+  (LOG_LEVEL >= 3) && console.log(`Server ${socket.instanceId} at address ${socket.instanceIp} on port ${socket.instancePort} left the cluster`);
 };
 
 var clientLeaveCluster = function (socket, respond) {
   delete clientInstanceSockets[socket.instanceId];
   respond && respond();
-  console.log(`Client ${socket.instanceId} at address ${socket.instanceIp} left the cluster`);
+  (LOG_LEVEL >= 3) && console.log(`Client ${socket.instanceId} at address ${socket.instanceIp} left the cluster`);
 };
 
 var checkClientStatesConvergence = function (socketList) {
@@ -91,7 +101,7 @@ var checkClientStatesConvergence = function (socketList) {
 var sendEventToInstance = function (socket, event, data) {
   socket.emit(event, data, function (err) {
     if (err) {
-      console.error(err);
+      (LOG_LEVEL > 0) && console.error(err);
       if (socket.state == 'open') {
         setTimeout(sendEventToInstance.bind(null, socket, event, data), RETRY_DELAY);
       }
@@ -105,17 +115,17 @@ var sendEventToAllInstances = function (instances, event, data) {
   });
 };
 
-var getRemoteIp = function(socket, data) {
+var getRemoteIp = function (socket, data) {
   var forwardedAddress = FORWARDED_FOR_HEADER ? (socket.request.headers[FORWARDED_FOR_HEADER] || '').split(',')[0] : null;
   return data.instanceIp || forwardedAddress || socket.remoteAddress;
 };
 
 scServer.on('error', function (err) {
-  console.error(err);
+  (LOG_LEVEL > 0) && console.error(err);
 });
 
 scServer.on('warning', function (err) {
-  console.warn(err);
+  (LOG_LEVEL >= 2) && console.warn(err);
 });
 
 if (AUTH_KEY) {
@@ -133,7 +143,7 @@ if (AUTH_KEY) {
 
 scServer.on('connection', function (socket) {
   socket.on('error', (err) => {
-    console.error(err);
+    (LOG_LEVEL > 0) && console.error(err);
   });
   socket.on('serverJoinCluster', function (data, respond) {
     socket.instanceType = 'server';
@@ -151,7 +161,7 @@ scServer.on('connection', function (socket) {
     });
 
     respond();
-    console.log(`Server ${data.instanceId} at address ${socket.instanceIp} on port ${socket.instancePort} joined the cluster`);
+    (LOG_LEVEL >= 3) && console.log(`Server ${data.instanceId} at address ${socket.instanceIp} on port ${socket.instancePort} joined the cluster`);
   });
   socket.on('serverLeaveCluster', function (respond) {
     serverLeaveCluster(socket, respond);
@@ -162,7 +172,7 @@ scServer.on('connection', function (socket) {
     socket.instanceIp = getRemoteIp(socket, data);
     clientInstanceSockets[data.instanceId] = socket;
     respond(null, getServerClusterState());
-    console.log(`Client ${data.instanceId} at address ${socket.instanceIp} joined the cluster`);
+    (LOG_LEVEL >= 3) && console.log(`Client ${data.instanceId} at address ${socket.instanceIp} joined the cluster`);
   });
   socket.on('clientLeaveCluster', function (respond) {
     clientLeaveCluster(socket, respond);
@@ -172,7 +182,7 @@ scServer.on('connection', function (socket) {
     var clientStatesConverge = checkClientStatesConvergence(clientInstanceSockets);
     if (clientStatesConverge) {
       sendEventToAllInstances(clientInstanceSockets, 'clientStatesConverge', {state: socket.instanceState});
-      console.log(`Cluster state converged to ${socket.instanceState}`);
+      (LOG_LEVEL >= 3) && console.log(`Cluster state converged to ${socket.instanceState}`);
     }
     respond();
   });
@@ -187,5 +197,5 @@ scServer.on('connection', function (socket) {
 
 httpServer.listen(PORT);
 httpServer.on('listening', function () {
-  console.log(`SC Cluster State Server is listening on port ${PORT}`);
+  (LOG_LEVEL >= 3) && console.log(`SC Cluster State Server is listening on port ${PORT}`);
 });
