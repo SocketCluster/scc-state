@@ -205,20 +205,20 @@ httpServer.on('listening', function () {
   logInfo(`SC Cluster State Server is listening on port ${PORT}`);
 });
 
-function logError(...args) {
+function logError(err) {
   if (LOG_LEVEL > 0) {
-    console.error(...args);
+    console.error(err);
   }
 }
 
-function logWarn(...args) {
+function logWarn(warn) {
   if (LOG_LEVEL >= 2) {
-    console.warn(...args);
+    console.warn(warn);
   }
 }
 
-function logInfo(...args) {
+function logInfo(info) {
   if (LOG_LEVEL >= 3) {
-    console.info(...args);
+    console.info(info);
   }
 }
