@@ -25,7 +25,7 @@ if (typeof argv.l !== 'undefined') {
 } else if (typeof process.env.SCC_STATE_LOG_LEVEL !== 'undefined') {
   LOG_LEVEL = Number(process.env.SCC_STATE_LOG_LEVEL);
 } else {
-  LOG_LEVEL = 1;
+  LOG_LEVEL = 3;
 }
 
 var httpServer = http.createServer();
@@ -81,17 +81,13 @@ var serverLeaveCluster = function (socket, respond) {
   });
 
   respond && respond();
-  if (LOG_LEVEL >= 3) {
-    console.log(`Server ${socket.instanceId} at address ${socket.instanceIp} on port ${socket.instancePort} left the cluster`);
-  }
+  logInfo(`Server ${socket.instanceId} at address ${socket.instanceIp} on port ${socket.instancePort} left the cluster`)
 };
 
 var clientLeaveCluster = function (socket, respond) {
   delete clientInstanceSockets[socket.instanceId];
   respond && respond();
-  if (LOG_LEVEL >= 3) {
-    console.log(`Client ${socket.instanceId} at address ${socket.instanceIp} left the cluster`);
-  }
+  logInfo(`Client ${socket.instanceId} at address ${socket.instanceIp} left the cluster`);
 };
 
 var checkClientStatesConvergence = function (socketList) {
@@ -110,9 +106,7 @@ var checkClientStatesConvergence = function (socketList) {
 var sendEventToInstance = function (socket, event, data) {
   socket.emit(event, data, function (err) {
     if (err) {
-      if (LOG_LEVEL > 0) {
-        console.error(err);
-      }
+      logError(err);
       if (socket.state == 'open') {
         setTimeout(sendEventToInstance.bind(null, socket, event, data), RETRY_DELAY);
       }
@@ -132,15 +126,11 @@ var getRemoteIp = function (socket, data) {
 };
 
 scServer.on('error', function (err) {
-  if (LOG_LEVEL > 0) {
-    console.error(err);
-  }
+  logError(err);
 });
 
 scServer.on('warning', function (err) {
-  if (LOG_LEVEL >= 2) {
-    console.warn(err);
-  }
+  logWarn(err);
 });
 
 if (AUTH_KEY) {
@@ -158,9 +148,7 @@ if (AUTH_KEY) {
 
 scServer.on('connection', function (socket) {
   socket.on('error', (err) => {
-    if (LOG_LEVEL > 0) {
-      console.error(err);
-    }
+    logError(err);
   });
   socket.on('serverJoinCluster', function (data, respond) {
     socket.instanceType = 'server';
@@ -178,9 +166,7 @@ scServer.on('connection', function (socket) {
     });
 
     respond();
-    if (LOG_LEVEL >= 3) {
-      console.log(`Server ${data.instanceId} at address ${socket.instanceIp} on port ${socket.instancePort} joined the cluster`);
-    }
+    logInfo(`Server ${data.instanceId} at address ${socket.instanceIp} on port ${socket.instancePort} joined the cluster`);
   });
   socket.on('serverLeaveCluster', function (respond) {
     serverLeaveCluster(socket, respond);
@@ -191,9 +177,7 @@ scServer.on('connection', function (socket) {
     socket.instanceIp = getRemoteIp(socket, data);
     clientInstanceSockets[data.instanceId] = socket;
     respond(null, getServerClusterState());
-    if (LOG_LEVEL >= 3) {
-      console.log(`Client ${data.instanceId} at address ${socket.instanceIp} joined the cluster`);
-    }
+    logInfo(`Client ${data.instanceId} at address ${socket.instanceIp} joined the cluster`);
   });
   socket.on('clientLeaveCluster', function (respond) {
     clientLeaveCluster(socket, respond);
@@ -203,9 +187,7 @@ scServer.on('connection', function (socket) {
     var clientStatesConverge = checkClientStatesConvergence(clientInstanceSockets);
     if (clientStatesConverge) {
       sendEventToAllInstances(clientInstanceSockets, 'clientStatesConverge', {state: socket.instanceState});
-      if (LOG_LEVEL >= 3) {
-        console.log(`Cluster state converged to ${socket.instanceState}`);
-      }
+      logInfo(`Cluster state converged to ${socket.instanceState}`);
     }
     respond();
   });
@@ -220,7 +202,23 @@ scServer.on('connection', function (socket) {
 
 httpServer.listen(PORT);
 httpServer.on('listening', function () {
-  if (LOG_LEVEL >= 3) {
-    console.log(`SC Cluster State Server is listening on port ${PORT}`);
-  }
+  logInfo(`SC Cluster State Server is listening on port ${PORT}`);
 });
+
+function logError(...args) {
+  if (LOG_LEVEL > 0) {
+    console.error(...args);
+  }
+}
+
+function logWarn(...args) {
+  if (LOG_LEVEL >= 2) {
+    console.warn(...args);
+  }
+}
+
+function logInfo(...args) {
+  if (LOG_LEVEL >= 3) {
+    console.info(...args);
+  }
+}
