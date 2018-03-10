@@ -119,7 +119,7 @@ scServer.on('warning', function (err) {
 });
 
 if (AUTH_KEY) {
-  scServer.addMiddleware(scServer.MIDDLEWARE_HANDSHAKE, (req, next) => {
+  scServer.addMiddleware(scServer.MIDDLEWARE_HANDSHAKE_SC, (req, next) => {
     var urlParts = url.parse(req.url, true);
     if (urlParts.query && urlParts.query.authKey == AUTH_KEY) {
       next();
