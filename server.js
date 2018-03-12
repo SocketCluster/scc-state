@@ -17,7 +17,7 @@ var httpServer = http.createServer();
 var scServer = socketCluster.attach(httpServer);
 
 httpServer.on('request', function (req, res) {
-  if (req.url == '/health-check') {
+  if (req.url === '/health-check') {
     res.writeHead(200, {'Content-Type': 'text/html'});
     res.end('OK');
   } else {
@@ -34,7 +34,7 @@ var getServerClusterState = function () {
   _.forOwn(serverInstanceSockets, function (socket) {
     var targetProtocol = socket.instanceSecure ? 'wss' : 'ws';
     var instanceIp;
-    if (socket.instanceIpFamily == 'IPv4') {
+    if (socket.instanceIpFamily === 'IPv4') {
       instanceIp = socket.instanceIp;
     } else {
       instanceIp = `[${socket.instanceIp}]`;
@@ -79,21 +79,25 @@ var checkClientStatesConvergence = function (socketList) {
   var prevInstanceState = null;
   var allStatesEqual = true;
   _.forEach(socketList, function (socket) {
-    if (prevInstanceState && prevInstanceState != socket.instanceState) {
+    if (prevInstanceState && prevInstanceState !== socket.instanceState) {
       allStatesEqual = false;
-      return;
+      return false;
     }
     prevInstanceState = socket.instanceState;
   });
   return allStatesEqual;
 };
 
-var sendEventToInstance = function (socket, event, data) {
+var lastSentEventDataString;
+
+var sendSharedEventToInstance = function (socket, event, data) {
+  var currentEventDataString = event + JSON.stringify(data);
+  lastSentEventDataString = currentEventDataString;
   socket.emit(event, data, function (err) {
     if (err) {
       console.error(err);
-      if (socket.state == 'open') {
-        setTimeout(sendEventToInstance.bind(null, socket, event, data), RETRY_DELAY);
+      if (socket.state === 'open' && currentEventDataString === lastSentEventDataString) {
+        setTimeout(sendSharedEventToInstance.bind(null, socket, event, data), RETRY_DELAY);
       }
     }
   });
@@ -101,7 +105,7 @@ var sendEventToInstance = function (socket, event, data) {
 
 var sendEventToAllInstances = function (instances, event, data) {
   _.forEach(instances, function (socket) {
-    sendEventToInstance(socket, event, data);
+    sendSharedEventToInstance(socket, event, data);
   });
 };
 
@@ -121,7 +125,7 @@ scServer.on('warning', function (err) {
 if (AUTH_KEY) {
   scServer.addMiddleware(scServer.MIDDLEWARE_HANDSHAKE_WS, (req, next) => {
     var urlParts = url.parse(req.url, true);
-    if (urlParts.query && urlParts.query.authKey == AUTH_KEY) {
+    if (urlParts.query && urlParts.query.authKey === AUTH_KEY) {
       next();
     } else {
       var err = new Error('Cannot connect to the cluster state server without providing a valid authKey as a URL query argument.');
@@ -177,9 +181,9 @@ scServer.on('connection', function (socket) {
     respond();
   });
   socket.on('disconnect', function () {
-    if (socket.instanceType == 'server') {
+    if (socket.instanceType === 'server') {
       serverLeaveCluster(socket);
-    } else if (socket.instanceType == 'client') {
+    } else if (socket.instanceType === 'client') {
       clientLeaveCluster(socket);
     }
   });
