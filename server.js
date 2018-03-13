@@ -28,6 +28,7 @@ httpServer.on('request', function (req, res) {
 
 var serverInstanceSockets = {};
 var clientInstanceSockets = {};
+var currentClientConvergencePhase = 'active';
 
 var getServerClusterState = function () {
   var serverInstances = [];
@@ -43,6 +44,7 @@ var getServerClusterState = function () {
     serverInstances.push(serverURI);
   });
   return {
+    phase: currentClientConvergencePhase,
     serverInstances: serverInstances,
     time: Date.now()
   };
@@ -60,6 +62,8 @@ var setClusterScaleTimeout = function (callback) {
 
 var serverLeaveCluster = function (socket, respond) {
   delete serverInstanceSockets[socket.instanceId];
+  // Reset to the first phase.
+  currentClientConvergencePhase = 'updatedSubs';
 
   setClusterScaleTimeout(() => {
     sendEventToAllInstances(clientInstanceSockets, 'serverLeaveCluster', getServerClusterState());
@@ -150,6 +154,9 @@ scServer.on('connection', function (socket) {
     socket.instanceSecure = data.instanceSecure;
     serverInstanceSockets[data.instanceId] = socket;
 
+    // Reset to the first phase.
+    currentClientConvergencePhase = 'updatedSubs';
+
     setClusterScaleTimeout(() => {
       sendEventToAllInstances(clientInstanceSockets, 'serverJoinCluster', getServerClusterState());
     });
@@ -175,6 +182,7 @@ scServer.on('connection', function (socket) {
     socket.instanceState = data.instanceState;
     var clientStatesConverge = checkClientStatesConvergence(clientInstanceSockets);
     if (clientStatesConverge) {
+      currentClientConvergencePhase = socket.instanceState.split(':')[0];
       sendEventToAllInstances(clientInstanceSockets, 'clientStatesConverge', {state: socket.instanceState});
       console.log(`Cluster state converged to ${socket.instanceState}`);
     }
