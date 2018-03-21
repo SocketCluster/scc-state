@@ -126,7 +126,8 @@ scServer.on('connection', function (socket) {
     socket.instanceType = 'scc-broker';
     socket.instanceId = data.instanceId;
     socket.instanceIp = getRemoteIp(socket, data);
-    if (data.instanceIpFamily) {
+    // Only set instanceIpFamily if data.instanceIp is provided.
+    if (data.instanceIp) {
       socket.instanceIpFamily = data.instanceIpFamily;
     }
     socket.instancePort = data.instancePort;
@@ -149,7 +150,8 @@ scServer.on('connection', function (socket) {
     socket.instanceType = 'scc-worker';
     socket.instanceId = data.instanceId;
     socket.instanceIp = getRemoteIp(socket, data);
-    if (data.instanceIpFamily) {
+    // Only set instanceIpFamily if data.instanceIp is provided.
+    if (data.instanceIp) {
       socket.instanceIpFamily = data.instanceIpFamily;
     }
     sccWorkerSockets[data.instanceId] = socket;
