@@ -5,11 +5,13 @@ var socketCluster = require('socketcluster-server');
 var url = require('url');
 
 var DEFAULT_PORT = 7777;
-var DEFAULT_CLUSTER_SCALE_DELAY = 5000;
+var DEFAULT_CLUSTER_SCALE_OUT_DELAY = 5000;
+var DEFAULT_CLUSTER_SCALE_BACK_DELAY = 1000;
 
 var RETRY_DELAY = Number(argv.r) || Number(process.env.SCC_STATE_SERVER_RETRY_DELAY) || 2000;
 var PORT = Number(argv.p) || Number(process.env.SCC_STATE_SERVER_PORT) || DEFAULT_PORT;
-var CLUSTER_SCALE_DELAY = Number(argv.d) || Number(process.env.SCC_STATE_SERVER_SCALE_DELAY) || DEFAULT_CLUSTER_SCALE_DELAY;
+var CLUSTER_SCALE_OUT_DELAY = Number(argv.d) || Number(process.env.SCC_STATE_SERVER_SCALE_OUT_DELAY) || DEFAULT_CLUSTER_SCALE_OUT_DELAY;
+var CLUSTER_SCALE_BACK_DELAY = Number(argv.d) || Number(process.env.SCC_STATE_SERVER_SCALE_BACK_DELAY) || DEFAULT_CLUSTER_SCALE_BACK_DELAY;
 var AUTH_KEY = process.env.SCC_AUTH_KEY || null;
 var FORWARDED_FOR_HEADER = process.env.FORWARDED_FOR_HEADER || null;
 
@@ -50,19 +52,19 @@ var getSCCBrokerClusterState = function () {
 
 var clusterResizeTimeout;
 
-var setClusterScaleTimeout = function (callback) {
+var setClusterScaleTimeout = function (callback, delay) {
   // Only the latest scale request counts.
   if (clusterResizeTimeout) {
     clearTimeout(clusterResizeTimeout);
   }
-  clusterResizeTimeout = setTimeout(callback, CLUSTER_SCALE_DELAY);
+  clusterResizeTimeout = setTimeout(callback, delay);
 };
 
 var sccBrokerLeaveCluster = function (socket, respond) {
   delete sccBrokerSockets[socket.instanceId];
   setClusterScaleTimeout(() => {
     sendEventToAllInstances(sccWorkerSockets, 'sccBrokerLeaveCluster', getSCCBrokerClusterState());
-  });
+  }, CLUSTER_SCALE_BACK_DELAY);
 
   respond && respond();
   console.log(`The scc-broker instance ${socket.instanceId} at address ${socket.instanceIp} on port ${socket.instancePort} left the cluster`);
@@ -136,7 +138,7 @@ scServer.on('connection', function (socket) {
 
     setClusterScaleTimeout(() => {
       sendEventToAllInstances(sccWorkerSockets, 'sccBrokerJoinCluster', getSCCBrokerClusterState());
-    });
+    }, CLUSTER_SCALE_OUT_DELAY);
 
     respond();
     console.log(`The scc-broker instance ${data.instanceId} at address ${socket.instanceIp} on port ${socket.instancePort} joined the cluster`);
