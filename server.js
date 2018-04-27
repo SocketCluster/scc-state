@@ -120,10 +120,6 @@ if (AUTH_KEY) {
 }
 
 scServer.on('connection', function (socket) {
-  socket.on('error', (err) => {
-    console.error(err);
-  });
-
   socket.on('sccBrokerJoinCluster', function (data, respond) {
     socket.instanceType = 'scc-broker';
     socket.instanceId = data.instanceId;
