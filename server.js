@@ -95,7 +95,7 @@ var sendEventToInstance = function (socket, event, data) {
   socket.emit(event, data, function (err) {
     if (err) {
       logError(err);
-      if (socket.state == 'open') {
+      if (socket.state === 'open') {
         setTimeout(sendEventToInstance.bind(null, socket, event, data), RETRY_DELAY);
       }
     }
