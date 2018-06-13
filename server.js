@@ -14,6 +14,21 @@ var CLUSTER_SCALE_OUT_DELAY = Number(argv.d) || Number(process.env.SCC_STATE_SER
 var CLUSTER_SCALE_BACK_DELAY = Number(argv.d) || Number(process.env.SCC_STATE_SERVER_SCALE_BACK_DELAY) || DEFAULT_CLUSTER_SCALE_BACK_DELAY;
 var AUTH_KEY = process.env.SCC_AUTH_KEY || null;
 var FORWARDED_FOR_HEADER = process.env.FORWARDED_FOR_HEADER || null;
+/**
+ * Log levels:
+ * 3 - log everything
+ * 2 - warnings and errors
+ * 1 - errors only
+ * 0 - log nothing
+ */
+var LOG_LEVEL;
+if (typeof argv.l !== 'undefined') {
+  LOG_LEVEL = Number(argv.l);
+} else if (typeof process.env.SCC_STATE_LOG_LEVEL !== 'undefined') {
+  LOG_LEVEL = Number(process.env.SCC_STATE_LOG_LEVEL);
+} else {
+  LOG_LEVEL = 3;
+}
 
 var httpServer = http.createServer();
 var scServer = socketCluster.attach(httpServer);
@@ -67,19 +82,19 @@ var sccBrokerLeaveCluster = function (socket, respond) {
   }, CLUSTER_SCALE_BACK_DELAY);
 
   respond && respond();
-  console.log(`The scc-broker instance ${socket.instanceId} at address ${socket.instanceIp} on port ${socket.instancePort} left the cluster`);
+  logInfo(`The scc-broker instance ${socket.instanceId} at address ${socket.instanceIp} on port ${socket.instancePort} left the cluster`);
 };
 
 var sccWorkerLeaveCluster = function (socket, respond) {
   delete sccWorkerSockets[socket.instanceId];
   respond && respond();
-  console.log(`The scc-worker instance ${socket.instanceId} at address ${socket.instanceIp} left the cluster`);
+  logInfo(`The scc-worker instance ${socket.instanceId} at address ${socket.instanceIp} left the cluster`);
 };
 
 var sendEventToInstance = function (socket, event, data) {
   socket.emit(event, data, function (err) {
     if (err) {
-      console.error(err);
+      logError(err);
       if (socket.state === 'open') {
         setTimeout(sendEventToInstance.bind(null, socket, event, data), RETRY_DELAY);
       }
@@ -99,11 +114,11 @@ var getRemoteIp = function(socket, data) {
 };
 
 scServer.on('error', function (err) {
-  console.error(err);
+  logError(err);
 });
 
 scServer.on('warning', function (err) {
-  console.warn(err);
+  logWarn(err);
 });
 
 if (AUTH_KEY) {
@@ -137,7 +152,7 @@ scServer.on('connection', function (socket) {
     }, CLUSTER_SCALE_OUT_DELAY);
 
     respond();
-    console.log(`The scc-broker instance ${data.instanceId} at address ${socket.instanceIp} on port ${socket.instancePort} joined the cluster`);
+    logInfo(`The scc-broker instance ${data.instanceId} at address ${socket.instanceIp} on port ${socket.instancePort} joined the cluster`);
   });
 
   socket.on('sccBrokerLeaveCluster', function (respond) {
@@ -154,7 +169,7 @@ scServer.on('connection', function (socket) {
     }
     sccWorkerSockets[data.instanceId] = socket;
     respond(null, getSCCBrokerClusterState());
-    console.log(`The scc-worker instance ${data.instanceId} at address ${socket.instanceIp} joined the cluster`);
+    logInfo(`The scc-worker instance ${data.instanceId} at address ${socket.instanceIp} joined the cluster`);
   });
 
   socket.on('sccWorkerLeaveCluster', function (respond) {
@@ -172,5 +187,23 @@ scServer.on('connection', function (socket) {
 
 httpServer.listen(PORT);
 httpServer.on('listening', function () {
-  console.log(`The scc-state instance is listening on port ${PORT}`);
+  logInfo(`The scc-state instance is listening on port ${PORT}`);
 });
+
+function logError(err) {
+  if (LOG_LEVEL > 0) {
+    console.error(err);
+  }
+}
+
+function logWarn(warn) {
+  if (LOG_LEVEL >= 2) {
+    console.warn(warn);
+  }
+}
+
+function logInfo(info) {
+  if (LOG_LEVEL >= 3) {
+    console.info(info);
+  }
+}
