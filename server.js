@@ -3,6 +3,8 @@ var argv = require('minimist')(process.argv.slice(2));
 var http = require('http');
 var socketCluster = require('socketcluster-server');
 var url = require('url');
+var sccSemverReport = require('scc-semver-report');
+var sccSemverReporter = sccSemverReport(sccSemverReport.SCC_STATE_PACKAGE_NAME);
 
 var DEFAULT_PORT = 7777;
 var DEFAULT_CLUSTER_SCALE_OUT_DELAY = 5000;
@@ -135,6 +137,8 @@ if (AUTH_KEY) {
 }
 
 scServer.on('connection', function (socket) {
+  sccSemverReporter.attach(socket, { logLevel: LOG_LEVEL });
+
   socket.on('sccBrokerJoinCluster', function (data, respond) {
     socket.instanceType = 'scc-broker';
     socket.instanceId = data.instanceId;
