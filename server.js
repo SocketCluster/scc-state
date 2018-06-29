@@ -143,7 +143,7 @@ scServer.addMiddleware(scServer.MIDDLEWARE_HANDSHAKE_SC, (req, next) => {
   req.socket.instancePort = urlParts.query.instancePort;
 
   var err;
-  var semver = urlParts.query && urlParts.query.semver;
+  var semver = urlParts.query && urlParts.query.version;
   var reportedMajorSemver = getMajorSemver(semver);
 
   if (reportedMajorSemver === requiredMajorSemver) {
