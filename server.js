@@ -108,7 +108,7 @@ var sendEventToAllInstances = function (instances, event, data) {
   });
 };
 
-var getRemoteIp = function(socket, data) {
+var getRemoteIp = function (socket, data) {
   var forwardedAddress = FORWARDED_FOR_HEADER ? (socket.request.headers[FORWARDED_FOR_HEADER] || '').split(',')[0] : null;
   return data.instanceIp || forwardedAddress || socket.remoteAddress;
 };
