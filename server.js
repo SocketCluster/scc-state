@@ -3,6 +3,9 @@ var argv = require('minimist')(process.argv.slice(2));
 var http = require('http');
 var socketCluster = require('socketcluster-server');
 var url = require('url');
+var semverRegex = /\d+\.\d+\.\d+/;
+var packageVersion = require(`./package.json`).version;
+var requiredMajorSemver = getMajorSemver(packageVersion);
 
 var DEFAULT_PORT = 7777;
 var DEFAULT_CLUSTER_SCALE_OUT_DELAY = 5000;
@@ -134,16 +137,35 @@ if (AUTH_KEY) {
   });
 }
 
+scServer.addMiddleware(scServer.MIDDLEWARE_HANDSHAKE_SC, (req, next) => {
+  var urlParts = url.parse(req.socket.request.url, true);
+  req.socket.instanceType = urlParts.query.instanceType;
+  req.socket.instancePort = urlParts.query.instancePort;
+
+  var err;
+  var semver = urlParts.query && urlParts.query.version;
+  var reportedMajorSemver = getMajorSemver(semver);
+
+  if (reportedMajorSemver === requiredMajorSemver) {
+    return next();
+  } else if (reportedMajorSemver > requiredMajorSemver) {
+    err = new Error(`The scc-state@${packageVersion} is incompatible with the ${req.socket.instanceType}@${semver}. Please, update the scc-state up to version ^${reportedMajorSemver}.0.0`);
+  } else {
+    err = new Error(`The ${req.socket.instanceType}@${semver} at address ${req.socket.remoteAddress} is incompatible with the scc-state@^${packageVersion}. Please, update the ${req.socket.instanceType} up to version ^${requiredMajorSemver}.0.0`);
+  }
+
+  err.name = 'CompatibilityError';
+  next(err);
+});
+
 scServer.on('connection', function (socket) {
   socket.on('sccBrokerJoinCluster', function (data, respond) {
-    socket.instanceType = 'scc-broker';
     socket.instanceId = data.instanceId;
     socket.instanceIp = getRemoteIp(socket, data);
     // Only set instanceIpFamily if data.instanceIp is provided.
     if (data.instanceIp) {
       socket.instanceIpFamily = data.instanceIpFamily;
     }
-    socket.instancePort = data.instancePort;
     socket.instanceSecure = data.instanceSecure;
     sccBrokerSockets[data.instanceId] = socket;
 
@@ -160,7 +182,6 @@ scServer.on('connection', function (socket) {
   });
 
   socket.on('sccWorkerJoinCluster', function (data, respond) {
-    socket.instanceType = 'scc-worker';
     socket.instanceId = data.instanceId;
     socket.instanceIp = getRemoteIp(socket, data);
     // Only set instanceIpFamily if data.instanceIp is provided.
@@ -205,5 +226,16 @@ function logWarn(warn) {
 function logInfo(info) {
   if (LOG_LEVEL >= 3) {
     console.info(info);
+  }
+}
+
+function getMajorSemver(semver) {
+  var semverIsValid = typeof semver === 'string' && semver.match(semverRegex);
+
+  if (semverIsValid) {
+    var majorSemver = semver.split('.')[0];
+    return parseInt(majorSemver);
+  } else {
+    return NaN;
   }
 }
