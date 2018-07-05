@@ -138,20 +138,25 @@ if (AUTH_KEY) {
 }
 
 scServer.addMiddleware(scServer.MIDDLEWARE_HANDSHAKE_SC, (req, next) => {
+  var remoteAddress = req.socket.remoteAddress;
   var urlParts = url.parse(req.socket.request.url, true);
-  req.socket.instanceType = urlParts.query.instanceType;
-  req.socket.instancePort = urlParts.query.instancePort;
+  var { version, instanceType, instancePort } = urlParts.query;
 
+  req.socket.instanceType = instanceType;
+  req.socket.instancePort = instancePort;
+
+  var reportedMajorSemver = getMajorSemver(version);
+  var sccComponentIsObsolete = (!instanceType || Number.isNaN(reportedMajorSemver));
   var err;
-  var semver = urlParts.query && urlParts.query.version;
-  var reportedMajorSemver = getMajorSemver(semver);
 
   if (reportedMajorSemver === requiredMajorSemver) {
     return next();
+  } else if (sccComponentIsObsolete) {
+    err = new Error(`An obsolete SCC component at address ${remoteAddress} is incompatible with the scc-state@^${packageVersion}. Please, update the SCC component up to version ^${requiredMajorSemver}.0.0`);
   } else if (reportedMajorSemver > requiredMajorSemver) {
-    err = new Error(`The scc-state@${packageVersion} is incompatible with the ${req.socket.instanceType}@${semver}. Please, update the scc-state up to version ^${reportedMajorSemver}.0.0`);
+    err = new Error(`The scc-state@${packageVersion} is incompatible with the ${instanceType}@${version}. Please, update the scc-state up to version ^${reportedMajorSemver}.0.0`);
   } else {
-    err = new Error(`The ${req.socket.instanceType}@${semver} at address ${req.socket.remoteAddress} is incompatible with the scc-state@^${packageVersion}. Please, update the ${req.socket.instanceType} up to version ^${requiredMajorSemver}.0.0`);
+    err = new Error(`The ${instanceType}@${version} at address ${remoteAddress}:${instancePort} is incompatible with the scc-state@^${packageVersion}. Please, update the ${instanceType} up to version ^${requiredMajorSemver}.0.0`);
   }
 
   err.name = 'CompatibilityError';
