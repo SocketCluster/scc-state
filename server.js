@@ -79,19 +79,19 @@ var setClusterScaleTimeout = function (callback, delay) {
 };
 
 var sccBrokerLeaveCluster = function (socket, respond) {
-  delete sccBrokerSockets[socket.instanceId];
+  delete sccBrokerSockets[socket.id];
   setClusterScaleTimeout(() => {
     sendEventToAllInstances(sccWorkerSockets, 'sccBrokerLeaveCluster', getSCCBrokerClusterState());
   }, CLUSTER_SCALE_BACK_DELAY);
 
   respond && respond();
-  logInfo(`The scc-broker instance ${socket.instanceId} at address ${socket.instanceIp} on port ${socket.instancePort} left the cluster`);
+  logInfo(`The scc-broker instance ${socket.instanceId} at address ${socket.instanceIp} on port ${socket.instancePort} left the cluster on socket ${socket.id}`);
 };
 
 var sccWorkerLeaveCluster = function (socket, respond) {
-  delete sccWorkerSockets[socket.instanceId];
+  delete sccWorkerSockets[socket.id];
   respond && respond();
-  logInfo(`The scc-worker instance ${socket.instanceId} at address ${socket.instanceIp} left the cluster`);
+  logInfo(`The scc-worker instance ${socket.instanceId} at address ${socket.instanceIp} left the cluster on socket ${socket.id}`);
 };
 
 var sendEventToInstance = function (socket, event, data) {
@@ -167,14 +167,14 @@ scServer.on('connection', function (socket) {
       socket.instanceIpFamily = data.instanceIpFamily;
     }
     socket.instanceSecure = data.instanceSecure;
-    sccBrokerSockets[data.instanceId] = socket;
+    sccBrokerSockets[socket.id] = socket;
 
     setClusterScaleTimeout(() => {
       sendEventToAllInstances(sccWorkerSockets, 'sccBrokerJoinCluster', getSCCBrokerClusterState());
     }, CLUSTER_SCALE_OUT_DELAY);
 
     respond();
-    logInfo(`The scc-broker instance ${data.instanceId} at address ${socket.instanceIp} on port ${socket.instancePort} joined the cluster`);
+    logInfo(`The scc-broker instance ${data.instanceId} at address ${socket.instanceIp} on port ${socket.instancePort} joined the cluster on socket ${socket.id}`);
   });
 
   socket.on('sccBrokerLeaveCluster', function (respond) {
@@ -188,9 +188,9 @@ scServer.on('connection', function (socket) {
     if (data.instanceIp) {
       socket.instanceIpFamily = data.instanceIpFamily;
     }
-    sccWorkerSockets[data.instanceId] = socket;
+    sccWorkerSockets[socket.id] = socket;
     respond(null, getSCCBrokerClusterState());
-    logInfo(`The scc-worker instance ${data.instanceId} at address ${socket.instanceIp} joined the cluster`);
+    logInfo(`The scc-worker instance ${data.instanceId} at address ${socket.instanceIp} joined the cluster on socket ${socket.id}`);
   });
 
   socket.on('sccWorkerLeaveCluster', function (respond) {
