@@ -50,7 +50,7 @@ var sccBrokerSockets = {};
 var sccWorkerSockets = {};
 
 var getSCCBrokerClusterState = function () {
-  var sccBrokerURIs = [];
+  var sccBrokerURILookup = {};
   _.forOwn(sccBrokerSockets, function (socket) {
     var targetProtocol = socket.instanceSecure ? 'wss' : 'ws';
     var instanceIp;
@@ -60,10 +60,10 @@ var getSCCBrokerClusterState = function () {
       instanceIp = `[${socket.instanceIp}]`;
     }
     var instanceURI = `${targetProtocol}://${instanceIp}:${socket.instancePort}`;
-    sccBrokerURIs.push(instanceURI);
+    sccBrokerURILookup[instanceURI] = true;
   });
   return {
-    sccBrokerURIs: sccBrokerURIs,
+    sccBrokerURIs: Object.keys(sccBrokerURILookup),
     time: Date.now()
   };
 };
