@@ -1,7 +1,7 @@
 FROM node:8-slim
 MAINTAINER Jonathan Gros-Dubois
 
-LABEL version="6.0.3"
+LABEL version="6.1.0"
 LABEL description="Docker file for SCC State Server"
 
 RUN mkdir -p /usr/src/
