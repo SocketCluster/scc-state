@@ -17,6 +17,8 @@ var CLUSTER_SCALE_OUT_DELAY = Number(argv.d) || Number(process.env.SCC_STATE_SER
 var CLUSTER_SCALE_BACK_DELAY = Number(argv.d) || Number(process.env.SCC_STATE_SERVER_SCALE_BACK_DELAY) || DEFAULT_CLUSTER_SCALE_BACK_DELAY;
 var AUTH_KEY = process.env.SCC_AUTH_KEY || null;
 var FORWARDED_FOR_HEADER = process.env.FORWARDED_FOR_HEADER || null;
+var STARTUP_DELAY = argv.s || process.env.SCC_STATE_SERVER_STARTUP_DELAY;
+STARTUP_DELAY = STARTUP_DELAY === '0' ? 0 : Number(STARTUP_DELAY) || DEFAULT_CLUSTER_SCALE_OUT_DELAY;
 /**
  * Log levels:
  * 3 - log everything
@@ -48,6 +50,14 @@ httpServer.on('request', function (req, res) {
 
 var sccBrokerSockets = {};
 var sccWorkerSockets = {};
+var serverReady = STARTUP_DELAY > 0 ? false : true;
+if (!serverReady) {
+  logInfo(`Waiting ${STARTUP_DELAY}ms for initial brokers before allowing workers to join`);
+  setTimeout(function() {
+    logInfo('State server is now allowing workers to join the cluster');
+    serverReady = true;
+  }, STARTUP_DELAY);
+}
 
 var getSCCBrokerClusterState = function () {
   var sccBrokerURILookup = {};
@@ -188,6 +198,12 @@ scServer.on('connection', function (socket) {
     if (data.instanceIp) {
       socket.instanceIpFamily = data.instanceIpFamily;
     }
+
+    if (!serverReady) {
+      logWarn(`The scc-worker instance ${data.instanceId} at address ${socket.instanceIp} on socket ${socket.id} was not allowed to join the cluster because the server is waiting for initial brokers`);
+      return respond(new Error('The server is waiting for initial broker connections'));
+    }
+
     sccWorkerSockets[socket.id] = socket;
     respond(null, getSCCBrokerClusterState());
     logInfo(`The scc-worker instance ${data.instanceId} at address ${socket.instanceIp} joined the cluster on socket ${socket.id}`);
