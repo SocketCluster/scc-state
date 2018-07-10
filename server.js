@@ -10,15 +10,27 @@ var requiredMajorSemver = getMajorSemver(packageVersion);
 var DEFAULT_PORT = 7777;
 var DEFAULT_CLUSTER_SCALE_OUT_DELAY = 5000;
 var DEFAULT_CLUSTER_SCALE_BACK_DELAY = 1000;
+var DEFAULT_CLUSTER_STARTUP_DELAY = 5000;
 
-var RETRY_DELAY = Number(argv.r) || Number(process.env.SCC_STATE_SERVER_RETRY_DELAY) || 2000;
 var PORT = Number(argv.p) || Number(process.env.SCC_STATE_SERVER_PORT) || DEFAULT_PORT;
-var CLUSTER_SCALE_OUT_DELAY = Number(argv.d) || Number(process.env.SCC_STATE_SERVER_SCALE_OUT_DELAY) || DEFAULT_CLUSTER_SCALE_OUT_DELAY;
-var CLUSTER_SCALE_BACK_DELAY = Number(argv.d) || Number(process.env.SCC_STATE_SERVER_SCALE_BACK_DELAY) || DEFAULT_CLUSTER_SCALE_BACK_DELAY;
 var AUTH_KEY = process.env.SCC_AUTH_KEY || null;
 var FORWARDED_FOR_HEADER = process.env.FORWARDED_FOR_HEADER || null;
-var STARTUP_DELAY = argv.s || process.env.SCC_STATE_SERVER_STARTUP_DELAY;
-STARTUP_DELAY = STARTUP_DELAY === '0' ? 0 : Number(STARTUP_DELAY) || DEFAULT_CLUSTER_SCALE_OUT_DELAY;
+var RETRY_DELAY = Number(argv.r) || Number(process.env.SCC_STATE_SERVER_RETRY_DELAY) || 2000;
+var CLUSTER_SCALE_OUT_DELAY = selectNumericArgument([argv.d, process.env.SCC_STATE_SERVER_SCALE_OUT_DELAY, DEFAULT_CLUSTER_SCALE_OUT_DELAY]);
+var CLUSTER_SCALE_BACK_DELAY = selectNumericArgument([argv.d, process.env.SCC_STATE_SERVER_SCALE_BACK_DELAY, DEFAULT_CLUSTER_SCALE_BACK_DELAY]);
+var STARTUP_DELAY = selectNumericArgument([argv.s, process.env.SCC_STATE_SERVER_STARTUP_DELAY, DEFAULT_CLUSTER_STARTUP_DELAY]);
+
+function selectNumericArgument(args) {
+  var lastIndex = args.length - 1;
+  for (var i = 0; i < lastIndex; i++) {
+    var current = Number(args[i]);
+    if (!isNaN(current) && args[i] != null) {
+      return current;
+    }
+  }
+  return Number(args[lastIndex]);
+};
+
 /**
  * Log levels:
  * 3 - log everything
@@ -52,9 +64,9 @@ var sccBrokerSockets = {};
 var sccWorkerSockets = {};
 var serverReady = STARTUP_DELAY > 0 ? false : true;
 if (!serverReady) {
-  logInfo(`Waiting ${STARTUP_DELAY}ms for initial brokers before allowing workers to join`);
+  logInfo(`Waiting ${STARTUP_DELAY}ms for initial scc-broker instances before allowing scc-worker instances to join`);
   setTimeout(function() {
-    logInfo('State server is now allowing workers to join the cluster');
+    logInfo('State server is now allowing scc-worker instances to join the cluster');
     serverReady = true;
   }, STARTUP_DELAY);
 }
