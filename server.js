@@ -1,4 +1,3 @@
-var _ = require('lodash');
 var argv = require('minimist')(process.argv.slice(2));
 var http = require('http');
 var socketCluster = require('socketcluster-server');
@@ -73,7 +72,8 @@ if (!serverReady) {
 
 var getSCCBrokerClusterState = function () {
   var sccBrokerURILookup = {};
-  _.forOwn(sccBrokerSockets, function (socket) {
+  Object.keys(sccBrokerSockets).forEach((socketId) => {
+    var socket = sccBrokerSockets[socketId];
     var targetProtocol = socket.instanceSecure ? 'wss' : 'ws';
     var instanceIp;
     if (socket.instanceIpFamily === 'IPv4') {
@@ -128,7 +128,8 @@ var sendEventToInstance = function (socket, event, data) {
 };
 
 var sendEventToAllInstances = function (instances, event, data) {
-  _.forEach(instances, function (socket) {
+  Object.keys(instances).forEach((socketId) => {
+    var socket = instances[socketId];
     sendEventToInstance(socket, event, data);
   });
 };
