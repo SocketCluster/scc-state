@@ -24,7 +24,6 @@
   "homepage": "https://github.com/SocketCluster/agc-state",
   "dependencies": {
     "asyngular-server": "^1.0.7",
-    "eetase": "^1.0.4",
-    "minimist": "1.2.0"
+    "eetase": "^1.0.4"
   }
 }

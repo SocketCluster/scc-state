@@ -1,4 +1,3 @@
-const argv = require('minimist')(process.argv.slice(2));
 const http = require('http');
 const asyngularServer = require('asyngular-server');
 const url = require('url');
@@ -12,13 +11,13 @@ const DEFAULT_CLUSTER_SCALE_OUT_DELAY = 5000;
 const DEFAULT_CLUSTER_SCALE_BACK_DELAY = 1000;
 const DEFAULT_CLUSTER_STARTUP_DELAY = 5000;
 
-const PORT = Number(argv.p) || Number(process.env.AGC_STATE_SERVER_PORT) || DEFAULT_PORT;
+const PORT = Number(process.env.AGC_STATE_SERVER_PORT) || DEFAULT_PORT;
 const AUTH_KEY = process.env.AGC_AUTH_KEY || null;
 const FORWARDED_FOR_HEADER = process.env.FORWARDED_FOR_HEADER || null;
-const RETRY_DELAY = Number(argv.r) || Number(process.env.AGC_STATE_SERVER_RETRY_DELAY) || 2000;
-const CLUSTER_SCALE_OUT_DELAY = selectNumericArgument([argv.d, process.env.AGC_STATE_SERVER_SCALE_OUT_DELAY, DEFAULT_CLUSTER_SCALE_OUT_DELAY]);
-const CLUSTER_SCALE_BACK_DELAY = selectNumericArgument([argv.d, process.env.AGC_STATE_SERVER_SCALE_BACK_DELAY, DEFAULT_CLUSTER_SCALE_BACK_DELAY]);
-const STARTUP_DELAY = selectNumericArgument([argv.s, process.env.AGC_STATE_SERVER_STARTUP_DELAY, DEFAULT_CLUSTER_STARTUP_DELAY]);
+const RETRY_DELAY = Number(process.env.AGC_STATE_SERVER_RETRY_DELAY) || 2000;
+const CLUSTER_SCALE_OUT_DELAY = selectNumericArgument([process.env.AGC_STATE_SERVER_SCALE_OUT_DELAY, DEFAULT_CLUSTER_SCALE_OUT_DELAY]);
+const CLUSTER_SCALE_BACK_DELAY = selectNumericArgument([process.env.AGC_STATE_SERVER_SCALE_BACK_DELAY, DEFAULT_CLUSTER_SCALE_BACK_DELAY]);
+const STARTUP_DELAY = selectNumericArgument([process.env.AGC_STATE_SERVER_STARTUP_DELAY, DEFAULT_CLUSTER_STARTUP_DELAY]);
 
 function selectNumericArgument(args) {
   let lastIndex = args.length - 1;
@@ -39,9 +38,7 @@ function selectNumericArgument(args) {
  * 0 - log nothing
  */
 let LOG_LEVEL;
-if (typeof argv.l !== 'undefined') {
-  LOG_LEVEL = Number(argv.l);
-} else if (typeof process.env.AGC_STATE_LOG_LEVEL !== 'undefined') {
+if (typeof process.env.AGC_STATE_LOG_LEVEL !== 'undefined') {
   LOG_LEVEL = Number(process.env.AGC_STATE_LOG_LEVEL);
 } else {
   LOG_LEVEL = 3;
