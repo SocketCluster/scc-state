@@ -1,29 +1,29 @@
-var argv = require('minimist')(process.argv.slice(2));
-var http = require('http');
-var asyngularServer = require('asyngular-server');
-var url = require('url');
-var semverRegex = /\d+\.\d+\.\d+/;
-var eetase = require('eetase');
-var packageVersion = require(`./package.json`).version;
-var requiredMajorSemver = getMajorSemver(packageVersion);
+const argv = require('minimist')(process.argv.slice(2));
+const http = require('http');
+const asyngularServer = require('asyngular-server');
+const url = require('url');
+const semverRegex = /\d+\.\d+\.\d+/;
+const eetase = require('eetase');
+const packageVersion = require(`./package.json`).version;
+const requiredMajorSemver = getMajorSemver(packageVersion);
 
-var DEFAULT_PORT = 7777;
-var DEFAULT_CLUSTER_SCALE_OUT_DELAY = 5000;
-var DEFAULT_CLUSTER_SCALE_BACK_DELAY = 1000;
-var DEFAULT_CLUSTER_STARTUP_DELAY = 5000;
+const DEFAULT_PORT = 7777;
+const DEFAULT_CLUSTER_SCALE_OUT_DELAY = 5000;
+const DEFAULT_CLUSTER_SCALE_BACK_DELAY = 1000;
+const DEFAULT_CLUSTER_STARTUP_DELAY = 5000;
 
-var PORT = Number(argv.p) || Number(process.env.AGC_STATE_SERVER_PORT) || DEFAULT_PORT;
-var AUTH_KEY = process.env.AGC_AUTH_KEY || null;
-var FORWARDED_FOR_HEADER = process.env.FORWARDED_FOR_HEADER || null;
-var RETRY_DELAY = Number(argv.r) || Number(process.env.AGC_STATE_SERVER_RETRY_DELAY) || 2000;
-var CLUSTER_SCALE_OUT_DELAY = selectNumericArgument([argv.d, process.env.AGC_STATE_SERVER_SCALE_OUT_DELAY, DEFAULT_CLUSTER_SCALE_OUT_DELAY]);
-var CLUSTER_SCALE_BACK_DELAY = selectNumericArgument([argv.d, process.env.AGC_STATE_SERVER_SCALE_BACK_DELAY, DEFAULT_CLUSTER_SCALE_BACK_DELAY]);
-var STARTUP_DELAY = selectNumericArgument([argv.s, process.env.AGC_STATE_SERVER_STARTUP_DELAY, DEFAULT_CLUSTER_STARTUP_DELAY]);
+const PORT = Number(argv.p) || Number(process.env.AGC_STATE_SERVER_PORT) || DEFAULT_PORT;
+const AUTH_KEY = process.env.AGC_AUTH_KEY || null;
+const FORWARDED_FOR_HEADER = process.env.FORWARDED_FOR_HEADER || null;
+const RETRY_DELAY = Number(argv.r) || Number(process.env.AGC_STATE_SERVER_RETRY_DELAY) || 2000;
+const CLUSTER_SCALE_OUT_DELAY = selectNumericArgument([argv.d, process.env.AGC_STATE_SERVER_SCALE_OUT_DELAY, DEFAULT_CLUSTER_SCALE_OUT_DELAY]);
+const CLUSTER_SCALE_BACK_DELAY = selectNumericArgument([argv.d, process.env.AGC_STATE_SERVER_SCALE_BACK_DELAY, DEFAULT_CLUSTER_SCALE_BACK_DELAY]);
+const STARTUP_DELAY = selectNumericArgument([argv.s, process.env.AGC_STATE_SERVER_STARTUP_DELAY, DEFAULT_CLUSTER_STARTUP_DELAY]);
 
 function selectNumericArgument(args) {
-  var lastIndex = args.length - 1;
-  for (var i = 0; i < lastIndex; i++) {
-    var current = Number(args[i]);
+  let lastIndex = args.length - 1;
+  for (let i = 0; i < lastIndex; i++) {
+    let current = Number(args[i]);
     if (!isNaN(current) && args[i] != null) {
       return current;
     }
@@ -38,7 +38,7 @@ function selectNumericArgument(args) {
  * 1 - errors only
  * 0 - log nothing
  */
-var LOG_LEVEL;
+let LOG_LEVEL;
 if (typeof argv.l !== 'undefined') {
   LOG_LEVEL = Number(argv.l);
 } else if (typeof process.env.AGC_STATE_LOG_LEVEL !== 'undefined') {
@@ -47,8 +47,8 @@ if (typeof argv.l !== 'undefined') {
   LOG_LEVEL = 3;
 }
 
-var httpServer = eetase(http.createServer());
-var agServer = asyngularServer.attach(httpServer);
+let httpServer = eetase(http.createServer());
+let agServer = asyngularServer.attach(httpServer);
 
 (async () => {
   for await (let [req, res] of httpServer.listener('request')) {
@@ -62,9 +62,9 @@ var agServer = asyngularServer.attach(httpServer);
   }
 })();
 
-var agcBrokerSockets = {};
-var agcWorkerSockets = {};
-var serverReady = STARTUP_DELAY > 0 ? false : true;
+let agcBrokerSockets = {};
+let agcWorkerSockets = {};
+let serverReady = STARTUP_DELAY > 0 ? false : true;
 if (!serverReady) {
   logInfo(`Waiting ${STARTUP_DELAY}ms for initial agc-broker instances before allowing agc-worker instances to join`);
   setTimeout(function() {
@@ -73,18 +73,18 @@ if (!serverReady) {
   }, STARTUP_DELAY);
 }
 
-var getAGCBrokerClusterState = function () {
-  var agcBrokerURILookup = {};
+let getAGCBrokerClusterState = function () {
+  let agcBrokerURILookup = {};
   Object.keys(agcBrokerSockets).forEach((socketId) => {
-    var socket = agcBrokerSockets[socketId];
-    var targetProtocol = socket.instanceSecure ? 'wss' : 'ws';
-    var instanceIp;
+    let socket = agcBrokerSockets[socketId];
+    let targetProtocol = socket.instanceSecure ? 'wss' : 'ws';
+    let instanceIp;
     if (socket.instanceIpFamily === 'IPv4') {
       instanceIp = socket.instanceIp;
     } else {
       instanceIp = `[${socket.instanceIp}]`;
     }
-    var instanceURI = `${targetProtocol}://${instanceIp}:${socket.instancePort}`;
+    let instanceURI = `${targetProtocol}://${instanceIp}:${socket.instancePort}`;
     agcBrokerURILookup[instanceURI] = true;
   });
   return {
@@ -93,9 +93,9 @@ var getAGCBrokerClusterState = function () {
   };
 };
 
-var clusterResizeTimeout;
+let clusterResizeTimeout;
 
-var setClusterScaleTimeout = function (callback, delay) {
+let setClusterScaleTimeout = function (callback, delay) {
   // Only the latest scale request counts.
   if (clusterResizeTimeout) {
     clearTimeout(clusterResizeTimeout);
@@ -103,7 +103,7 @@ var setClusterScaleTimeout = function (callback, delay) {
   clusterResizeTimeout = setTimeout(callback, delay);
 };
 
-var agcBrokerLeaveCluster = function (socket, req) {
+let agcBrokerLeaveCluster = function (socket, req) {
   delete agcBrokerSockets[socket.id];
   setClusterScaleTimeout(() => {
     invokeRPCOnAllInstances(agcWorkerSockets, 'agcBrokerLeaveCluster', getAGCBrokerClusterState());
@@ -115,7 +115,7 @@ var agcBrokerLeaveCluster = function (socket, req) {
   logInfo(`The agc-broker instance ${socket.instanceId} at address ${socket.instanceIp} on port ${socket.instancePort} left the cluster on socket ${socket.id}`);
 };
 
-var agcWorkerLeaveCluster = function (socket, req) {
+let agcWorkerLeaveCluster = function (socket, req) {
   delete agcWorkerSockets[socket.id];
   if (req) {
     req.end();
@@ -123,7 +123,7 @@ var agcWorkerLeaveCluster = function (socket, req) {
   logInfo(`The agc-worker instance ${socket.instanceId} at address ${socket.instanceIp} left the cluster on socket ${socket.id}`);
 };
 
-var invokeRPCOnInstance = async function (socket, procedureName, data) {
+let invokeRPCOnInstance = async function (socket, procedureName, data) {
   try {
     await socket.invoke(procedureName);
   } catch (err) {
@@ -134,15 +134,15 @@ var invokeRPCOnInstance = async function (socket, procedureName, data) {
   }
 };
 
-var invokeRPCOnAllInstances = function (instances, event, data) {
+let invokeRPCOnAllInstances = function (instances, event, data) {
   Object.keys(instances).forEach((socketId) => {
-    var socket = instances[socketId];
+    let socket = instances[socketId];
     invokeRPCOnInstance(socket, event, data);
   });
 };
 
-var getRemoteIp = function (socket, data) {
-  var forwardedAddress = FORWARDED_FOR_HEADER ? (socket.request.headers[FORWARDED_FOR_HEADER] || '').split(',')[0] : null;
+let getRemoteIp = function (socket, data) {
+  let forwardedAddress = FORWARDED_FOR_HEADER ? (socket.request.headers[FORWARDED_FOR_HEADER] || '').split(',')[0] : null;
   return data.instanceIp || forwardedAddress || socket.remoteAddress;
 };
 
@@ -160,11 +160,11 @@ var getRemoteIp = function (socket, data) {
 
 if (AUTH_KEY) {
   agServer.addMiddleware(agServer.MIDDLEWARE_HANDSHAKE_WS, (req, next) => {
-    var urlParts = url.parse(req.url, true);
+    let urlParts = url.parse(req.url, true);
     if (urlParts.query && urlParts.query.authKey === AUTH_KEY) {
       next();
     } else {
-      var err = new Error('Cannot connect to the agc-state instance without providing a valid authKey as a URL query argument.');
+      let err = new Error('Cannot connect to the agc-state instance without providing a valid authKey as a URL query argument.');
       err.name = 'BadClusterAuthError';
       next(err);
     }
@@ -172,16 +172,16 @@ if (AUTH_KEY) {
 }
 
 agServer.addMiddleware(agServer.MIDDLEWARE_HANDSHAKE_SC, (req, next) => {
-  var remoteAddress = req.socket.remoteAddress;
-  var urlParts = url.parse(req.socket.request.url, true);
-  var { version, instanceType, instancePort } = urlParts.query;
+  let remoteAddress = req.socket.remoteAddress;
+  let urlParts = url.parse(req.socket.request.url, true);
+  let { version, instanceType, instancePort } = urlParts.query;
 
   req.socket.instanceType = instanceType;
   req.socket.instancePort = instancePort;
 
-  var reportedMajorSemver = getMajorSemver(version);
-  var agcComponentIsObsolete = (!instanceType || Number.isNaN(reportedMajorSemver));
-  var err;
+  let reportedMajorSemver = getMajorSemver(version);
+  let agcComponentIsObsolete = (!instanceType || Number.isNaN(reportedMajorSemver));
+  let err;
 
   if (reportedMajorSemver === requiredMajorSemver) {
     return next();
@@ -297,10 +297,10 @@ function logInfo(info) {
 }
 
 function getMajorSemver(semver) {
-  var semverIsValid = typeof semver === 'string' && semver.match(semverRegex);
+  let semverIsValid = typeof semver === 'string' && semver.match(semverRegex);
 
   if (semverIsValid) {
-    var majorSemver = semver.split('.')[0];
+    let majorSemver = semver.split('.')[0];
     return parseInt(majorSemver);
   } else {
     return NaN;
