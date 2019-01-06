@@ -156,19 +156,17 @@ let getRemoteIp = function (socket, data) {
 })();
 
 if (AUTH_KEY) {
-  agServer.addMiddleware(agServer.MIDDLEWARE_HANDSHAKE_WS, (req, next) => {
+  agServer.addMiddleware(agServer.MIDDLEWARE_HANDSHAKE_WS, async (req) => {
     let urlParts = url.parse(req.url, true);
-    if (urlParts.query && urlParts.query.authKey === AUTH_KEY) {
-      next();
-    } else {
+    if (!urlParts.query || urlParts.query.authKey !== AUTH_KEY) {
       let err = new Error('Cannot connect to the agc-state instance without providing a valid authKey as a URL query argument.');
       err.name = 'BadClusterAuthError';
-      next(err);
+      throw err;
     }
   });
 }
 
-agServer.addMiddleware(agServer.MIDDLEWARE_HANDSHAKE_AG, (req, next) => {
+agServer.addMiddleware(agServer.MIDDLEWARE_HANDSHAKE_AG, async (req) => {
   let remoteAddress = req.socket.remoteAddress;
   let urlParts = url.parse(req.socket.request.url, true);
   let { version, instanceType, instancePort } = urlParts.query;
@@ -181,17 +179,17 @@ agServer.addMiddleware(agServer.MIDDLEWARE_HANDSHAKE_AG, (req, next) => {
   let err;
 
   if (reportedMajorSemver === requiredMajorSemver) {
-    return next();
-  } else if (agcComponentIsObsolete) {
+    return;
+  }
+  if (agcComponentIsObsolete) {
     err = new Error(`An obsolete AGC component at address ${remoteAddress} is incompatible with the agc-state@^${packageVersion}. Please, update the AGC component up to version ^${requiredMajorSemver}.0.0`);
   } else if (reportedMajorSemver > requiredMajorSemver) {
     err = new Error(`The agc-state@${packageVersion} is incompatible with the ${instanceType}@${version}. Please, update the agc-state up to version ^${reportedMajorSemver}.0.0`);
   } else {
     err = new Error(`The ${instanceType}@${version} at address ${remoteAddress}:${instancePort} is incompatible with the agc-state@^${packageVersion}. Please, update the ${instanceType} up to version ^${requiredMajorSemver}.0.0`);
   }
-
   err.name = 'CompatibilityError';
-  next(err);
+  throw err;
 });
 
 (async () => {
