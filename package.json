@@ -23,7 +23,7 @@
   },
   "homepage": "https://github.com/SocketCluster/agc-state",
   "dependencies": {
-    "asyngular-server": "^1.0.7",
+    "asyngular-server": "^1.1.0",
     "eetase": "^1.0.4"
   }
 }

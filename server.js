@@ -168,7 +168,7 @@ if (AUTH_KEY) {
   });
 }
 
-agServer.addMiddleware(agServer.MIDDLEWARE_HANDSHAKE_SC, (req, next) => {
+agServer.addMiddleware(agServer.MIDDLEWARE_HANDSHAKE_AG, (req, next) => {
   let remoteAddress = req.socket.remoteAddress;
   let urlParts = url.parse(req.socket.request.url, true);
   let { version, instanceType, instancePort } = urlParts.query;
@@ -268,9 +268,8 @@ agServer.addMiddleware(agServer.MIDDLEWARE_HANDSHAKE_SC, (req, next) => {
 })();
 
 (async () => {
-  for await (let event of httpServer.listener('listening')) {
-    logInfo(`The agc-state instance is listening on port ${PORT}`);
-  }
+  await httpServer.listener('listening').once();
+  logInfo(`The agc-state instance is listening on port ${PORT}`);
 })();
 
 httpServer.listen(PORT);
