@@ -197,7 +197,7 @@ agServer.addMiddleware(agServer.MIDDLEWARE_HANDSHAKE_AG, async (req) => {
 
     (async () => {
       for await (let req of socket.procedure('agcBrokerJoinCluster')) {
-        let data = req.data;
+        let data = req.data || {};
         socket.instanceId = data.instanceId;
         socket.instanceIp = getRemoteIp(socket, data);
         // Only set instanceIpFamily if data.instanceIp is provided.
@@ -224,7 +224,7 @@ agServer.addMiddleware(agServer.MIDDLEWARE_HANDSHAKE_AG, async (req) => {
 
     (async () => {
       for await (let req of socket.procedure('agcWorkerJoinCluster')) {
-        let data = req.data;
+        let data = req.data || {};
         socket.instanceId = data.instanceId;
         socket.instanceIp = getRemoteIp(socket, data);
         // Only set instanceIpFamily if data.instanceIp is provided.
