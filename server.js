@@ -122,7 +122,7 @@ let agcWorkerLeaveCluster = function (socket, req) {
 
 let invokeRPCOnInstance = async function (socket, procedureName, data) {
   try {
-    await socket.invoke(procedureName);
+    await socket.invoke(procedureName, data);
   } catch (err) {
     logError(err);
     if (socket.state === 'open') {
@@ -131,10 +131,10 @@ let invokeRPCOnInstance = async function (socket, procedureName, data) {
   }
 };
 
-let invokeRPCOnAllInstances = function (instances, event, data) {
+let invokeRPCOnAllInstances = function (instances, procedureName, data) {
   Object.keys(instances).forEach((socketId) => {
     let socket = instances[socketId];
-    invokeRPCOnInstance(socket, event, data);
+    invokeRPCOnInstance(socket, procedureName, data);
   });
 };
 
