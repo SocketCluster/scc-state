@@ -1,12 +1,14 @@
 # agc-state
 Cluster state tracking and notification engine for Asyngular clusters
 
-### Log levels:
+### Usage
+
 ```js
-node server.js -l 0
-// or
 AGC_STATE_LOG_LEVEL=0 node server.js
 ```
+
+### Log levels
+
  * 3 - log everything
  * 2 - warnings and errors
  * 1 - errors only
