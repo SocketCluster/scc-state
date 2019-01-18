@@ -1,5 +1,6 @@
 const http = require('http');
 const asyngularServer = require('asyngular-server');
+const Action = require('asyngular-server/action');
 const url = require('url');
 const semverRegex = /\d+\.\d+\.\d+/;
 const eetase = require('eetase');
@@ -12,7 +13,7 @@ const DEFAULT_CLUSTER_SCALE_BACK_DELAY = 1000;
 const DEFAULT_CLUSTER_STARTUP_DELAY = 5000;
 
 const PORT = Number(process.env.AGC_STATE_SERVER_PORT) || DEFAULT_PORT;
-const AUTH_KEY = process.env.AGC_AUTH_KEY || null;
+const AGC_AUTH_KEY = process.env.AGC_AUTH_KEY || null;
 const FORWARDED_FOR_HEADER = process.env.FORWARDED_FOR_HEADER || null;
 const RETRY_DELAY = Number(process.env.AGC_STATE_SERVER_RETRY_DELAY) || 2000;
 const CLUSTER_SCALE_OUT_DELAY = selectNumericArgument([process.env.AGC_STATE_SERVER_SCALE_OUT_DELAY, DEFAULT_CLUSTER_SCALE_OUT_DELAY]);
@@ -155,41 +156,51 @@ let getRemoteIp = function (socket, data) {
   }
 })();
 
-if (AUTH_KEY) {
-  agServer.addMiddleware(agServer.MIDDLEWARE_HANDSHAKE_WS, async (req) => {
-    let urlParts = url.parse(req.url, true);
-    if (!urlParts.query || urlParts.query.authKey !== AUTH_KEY) {
-      let err = new Error('Cannot connect to the agc-state instance without providing a valid authKey as a URL query argument.');
-      err.name = 'BadClusterAuthError';
-      throw err;
+
+agServer.setMiddleware(agServer.MIDDLEWARE_HANDSHAKE, async (middlewareStream) => {
+  for await (let action of middlewareStream) {
+    if (action.type === Action.HANDSHAKE_WS) {
+      if (AGC_AUTH_KEY) {
+        let urlParts = url.parse(action.request.url, true);
+        if (!urlParts.query || urlParts.query.authKey !== AGC_AUTH_KEY) {
+          let err = new Error('Cannot connect to the agc-state instance without providing a valid authKey as a URL query argument.');
+          err.name = 'BadClusterAuthError';
+          action.block(err);
+
+          continue;
+        }
+      }
     }
-  });
-}
 
-agServer.addMiddleware(agServer.MIDDLEWARE_HANDSHAKE_AG, async (req) => {
-  let remoteAddress = req.socket.remoteAddress;
-  let urlParts = url.parse(req.socket.request.url, true);
-  let { version, instanceType, instancePort } = urlParts.query;
+    if (action.type === Action.HANDSHAKE_AG) {
+      let remoteAddress = action.socket.remoteAddress;
+      let urlParts = url.parse(action.socket.request.url, true);
+      let { version, instanceType, instancePort } = urlParts.query;
 
-  req.socket.instanceType = instanceType;
-  req.socket.instancePort = instancePort;
+      action.socket.instanceType = instanceType;
+      action.socket.instancePort = instancePort;
 
-  let reportedMajorSemver = getMajorSemver(version);
-  let agcComponentIsObsolete = (!instanceType || Number.isNaN(reportedMajorSemver));
-  let err;
+      let reportedMajorSemver = getMajorSemver(version);
+      let agcComponentIsObsolete = (!instanceType || Number.isNaN(reportedMajorSemver));
 
-  if (reportedMajorSemver === requiredMajorSemver) {
-    return;
+      if (reportedMajorSemver !== requiredMajorSemver) {
+        let err;
+        if (agcComponentIsObsolete) {
+          err = new Error(`An obsolete AGC component at address ${remoteAddress} is incompatible with the agc-state@^${packageVersion}. Please, update the AGC component up to version ^${requiredMajorSemver}.0.0`);
+        } else if (reportedMajorSemver > requiredMajorSemver) {
+          err = new Error(`The agc-state@${packageVersion} is incompatible with the ${instanceType}@${version}. Please, update the agc-state up to version ^${reportedMajorSemver}.0.0`);
+        } else {
+          err = new Error(`The ${instanceType}@${version} at address ${remoteAddress}:${instancePort} is incompatible with the agc-state@^${packageVersion}. Please, update the ${instanceType} up to version ^${requiredMajorSemver}.0.0`);
+        }
+        err.name = 'CompatibilityError';
+        action.block(err);
+
+        continue;
+      }
+    }
+
+    action.allow();
   }
-  if (agcComponentIsObsolete) {
-    err = new Error(`An obsolete AGC component at address ${remoteAddress} is incompatible with the agc-state@^${packageVersion}. Please, update the AGC component up to version ^${requiredMajorSemver}.0.0`);
-  } else if (reportedMajorSemver > requiredMajorSemver) {
-    err = new Error(`The agc-state@${packageVersion} is incompatible with the ${instanceType}@${version}. Please, update the agc-state up to version ^${reportedMajorSemver}.0.0`);
-  } else {
-    err = new Error(`The ${instanceType}@${version} at address ${remoteAddress}:${instancePort} is incompatible with the agc-state@^${packageVersion}. Please, update the ${instanceType} up to version ^${requiredMajorSemver}.0.0`);
-  }
-  err.name = 'CompatibilityError';
-  throw err;
 });
 
 (async () => {
