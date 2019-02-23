@@ -156,7 +156,6 @@ let getRemoteIp = function (socket, data) {
   }
 })();
 
-
 agServer.setMiddleware(agServer.MIDDLEWARE_HANDSHAKE, async (middlewareStream) => {
   for await (let action of middlewareStream) {
     if (action.type === Action.HANDSHAKE_WS) {

@@ -1,6 +1,6 @@
 {
   "name": "agc-state",
-  "version": "5.0.0",
+  "version": "5.1.0",
   "description": "State tracking and notification engine for Asyngular clusters.",
   "main": "server.js",
   "scripts": {
@@ -23,7 +23,7 @@
   },
   "homepage": "https://github.com/SocketCluster/agc-state",
   "dependencies": {
-    "asyngular-server": "^5.0.0",
-    "eetase": "^2.0.0"
+    "asyngular-server": "^5.1.0",
+    "eetase": "^2.1.0"
   }
 }
