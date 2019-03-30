@@ -29,7 +29,6 @@ var STARTUP_DELAY = selectNumericArgument([argv.s, process.env.SCC_STATE_SERVER_
 *  SOCKETCLUSTER_BROKER_SSL_REJECT_UNAUTHORIZED : this is for the "socket-cluster-client" when connecting to the state. In case of self sign certificates.
 *
 */
-
 var SOCKETCLUSTER_SECURE_COM = argv.sec || process.env.SOCKETCLUSTER_SECURE_COM || false;
 var SOCKETCLUSTER_STATE_SSL_KEY = argv.sslk || process.env.SOCKETCLUSTER_STATE_SSL_KEY || false;
 var SOCKETCLUSTER_STATE_SSL_CERT = argv.sslc || process.env.SOCKETCLUSTER_STATE_SSL_CERT || false;

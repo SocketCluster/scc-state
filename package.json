@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/SocketCluster/scc-state.git"
+    "url": "git+ssh@github.com:matth-c3/scc-state.git"
   },
   "keywords": [
     "cluster",
