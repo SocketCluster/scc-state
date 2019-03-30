@@ -1,10 +1,12 @@
 var argv = require('minimist')(process.argv.slice(2));
 var http = require('http');
-var socketCluster = require('socketcluster-server');
+var https = require('https');
+var socketCluster = require('../socketcluster-server');
 var url = require('url');
 var semverRegex = /\d+\.\d+\.\d+/;
 var packageVersion = require(`./package.json`).version;
 var requiredMajorSemver = getMajorSemver(packageVersion);
+var fs = require('fs');
 
 var DEFAULT_PORT = 7777;
 var DEFAULT_CLUSTER_SCALE_OUT_DELAY = 5000;
@@ -18,6 +20,24 @@ var RETRY_DELAY = Number(argv.r) || Number(process.env.SCC_STATE_SERVER_RETRY_DE
 var CLUSTER_SCALE_OUT_DELAY = selectNumericArgument([argv.d, process.env.SCC_STATE_SERVER_SCALE_OUT_DELAY, DEFAULT_CLUSTER_SCALE_OUT_DELAY]);
 var CLUSTER_SCALE_BACK_DELAY = selectNumericArgument([argv.d, process.env.SCC_STATE_SERVER_SCALE_BACK_DELAY, DEFAULT_CLUSTER_SCALE_BACK_DELAY]);
 var STARTUP_DELAY = selectNumericArgument([argv.s, process.env.SCC_STATE_SERVER_STARTUP_DELAY, DEFAULT_CLUSTER_STARTUP_DELAY]);
+
+/*
+*
+*  SOCKETCLUSTER_SECURE_COM : force https on the internal stack
+*  SOCKETCLUSTER_STATE_SSL_KEY : ssl key for the broker http server
+*  SOCKETCLUSTER_STATE_SSL_CERT : ssl cert for the broker http server
+*  SOCKETCLUSTER_BROKER_SSL_REJECT_UNAUTHORIZED : this is for the "socket-cluster-client" when connecting to the state. In case of self sign certificates.
+*
+*/
+
+var SOCKETCLUSTER_SECURE_COM = argv.sec || process.env.SOCKETCLUSTER_SECURE_COM || false;
+var SOCKETCLUSTER_STATE_SSL_KEY = argv.sslk || process.env.SOCKETCLUSTER_STATE_SSL_KEY || false;
+var SOCKETCLUSTER_STATE_SSL_CERT = argv.sslc || process.env.SOCKETCLUSTER_STATE_SSL_CERT || false;
+
+
+// Should not be necessary as the scc-state is not connecting with ws, but only receive connection
+//var SOCKETCLUSTER_STATE_SSL_REJECT_UNAUTHORIZED = argv.sslru || process.env.SOCKETCLUSTER_BROKER_SSL_REJECT_UNAUTHORIZED || false;
+
 
 function selectNumericArgument(args) {
   var lastIndex = args.length - 1;
@@ -37,7 +57,7 @@ function selectNumericArgument(args) {
  * 1 - errors only
  * 0 - log nothing
  */
-var LOG_LEVEL;
+var LOG_LEVEL = 3;
 if (typeof argv.l !== 'undefined') {
   LOG_LEVEL = Number(argv.l);
 } else if (typeof process.env.SCC_STATE_LOG_LEVEL !== 'undefined') {
@@ -46,8 +66,24 @@ if (typeof argv.l !== 'undefined') {
   LOG_LEVEL = 3;
 }
 
-var httpServer = http.createServer();
-var scServer = socketCluster.attach(httpServer);
+const optionSSL = {};
+var httpServer, scServer;
+
+if(typeof SOCKETCLUSTER_SECURE_COM === "string" && SOCKETCLUSTER_SECURE_COM === "true") {
+  optionSSL.protocol = 'https';
+  httpServer = https.createServer({
+    key: (SOCKETCLUSTER_STATE_SSL_KEY !== "false") ? fs.readFileSync(SOCKETCLUSTER_STATE_SSL_KEY) : void 0,
+    cert: (SOCKETCLUSTER_STATE_SSL_CERT !== "false") ? fs.readFileSync(SOCKETCLUSTER_STATE_SSL_CERT) : void 0,
+    rejectUnauthorized : false
+  });
+  scServer = socketCluster.attach(httpServer, optionSSL);
+} else  {
+  httpServer = http.createServer();
+  scServer = socketCluster.attach(httpServer);
+}
+
+
+
 
 httpServer.on('request', function (req, res) {
   if (req.url === '/health-check') {
@@ -73,6 +109,7 @@ if (!serverReady) {
 var getSCCBrokerClusterState = function () {
   var sccBrokerURILookup = {};
   Object.keys(sccBrokerSockets).forEach((socketId) => {
+    console.log(socketId);
     var socket = sccBrokerSockets[socketId];
     var targetProtocol = socket.instanceSecure ? 'wss' : 'ws';
     var instanceIp;
@@ -187,6 +224,7 @@ scServer.addMiddleware(scServer.MIDDLEWARE_HANDSHAKE_SC, (req, next) => {
 });
 
 scServer.on('connection', function (socket) {
+
   socket.on('sccBrokerJoinCluster', function (data, respond) {
     socket.instanceId = data.instanceId;
     socket.instanceIp = getRemoteIp(socket, data);
@@ -240,7 +278,7 @@ scServer.on('connection', function (socket) {
   });
 });
 
-httpServer.listen(PORT);
+httpServer.listen(PORT, '127.0.0.1');
 httpServer.on('listening', function () {
   logInfo(`The scc-state instance is listening on port ${PORT}`);
 });
