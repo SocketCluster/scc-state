@@ -71,39 +71,77 @@ if (!serverReady) {
   }, STARTUP_DELAY);
 }
 
-let getAGCBrokerClusterState = function () {
+let getInstanceURI = function (socket) {
+  let targetProtocol = socket.instanceSecure ? 'wss' : 'ws';
+  let instanceIp;
+  if (socket.instanceIpFamily === 'IPv4') {
+    instanceIp = socket.instanceIp;
+  } else {
+    instanceIp = `[${socket.instanceIp}]`;
+  }
+  return `${targetProtocol}://${instanceIp}:${socket.instancePort}`;
+};
+
+let getAGCWorkerClusterState = function (time) {
+  let agcWorkerURILookup = {};
+  Object.keys(agcWorkerSockets).forEach((socketId) => {
+    let socket = agcWorkerSockets[socketId];
+    let instanceURI = getInstanceURI(socket);
+    agcWorkerURILookup[instanceURI] = true;
+  });
+  return {
+    agcWorkerURIs: Object.keys(agcWorkerURILookup),
+    time: time == null ? Date.now() : time
+  };
+};
+
+let getAGCBrokerClusterState = function (time) {
   let agcBrokerURILookup = {};
   Object.keys(agcBrokerSockets).forEach((socketId) => {
     let socket = agcBrokerSockets[socketId];
-    let targetProtocol = socket.instanceSecure ? 'wss' : 'ws';
-    let instanceIp;
-    if (socket.instanceIpFamily === 'IPv4') {
-      instanceIp = socket.instanceIp;
-    } else {
-      instanceIp = `[${socket.instanceIp}]`;
-    }
-    let instanceURI = `${targetProtocol}://${instanceIp}:${socket.instancePort}`;
+    let instanceURI = getInstanceURI(socket);
     agcBrokerURILookup[instanceURI] = true;
   });
   return {
     agcBrokerURIs: Object.keys(agcBrokerURILookup),
-    time: Date.now()
+    time: time == null ? Date.now() : time
   };
 };
 
-let clusterResizeTimeout;
+let getAGCClusterState = function () {
+  let time = Date.now();
+  let workerClusterState = getAGCWorkerClusterState(time);
+  let brokerClusterState = getAGCBrokerClusterState(time);
+  return {
+    agcWorkerURIs: workerClusterState.agcWorkerURIs,
+    agcBrokerURIs: brokerClusterState.agcBrokerURIs,
+    time
+  };
+};
 
-let setClusterScaleTimeout = function (callback, delay) {
+let brokerClusterResizeTimeout;
+
+let setBrokerClusterScaleTimeout = function (callback, delay) {
   // Only the latest scale request counts.
-  if (clusterResizeTimeout) {
-    clearTimeout(clusterResizeTimeout);
+  if (brokerClusterResizeTimeout) {
+    clearTimeout(brokerClusterResizeTimeout);
   }
-  clusterResizeTimeout = setTimeout(callback, delay);
+  brokerClusterResizeTimeout = setTimeout(callback, delay);
+};
+
+let workerClusterResizeTimeout;
+
+let setWorkerClusterScaleTimeout = function (callback, delay) {
+  // Only the latest scale request counts.
+  if (workerClusterResizeTimeout) {
+    clearTimeout(workerClusterResizeTimeout);
+  }
+  workerClusterResizeTimeout = setTimeout(callback, delay);
 };
 
 let agcBrokerLeaveCluster = function (socket, req) {
   delete agcBrokerSockets[socket.id];
-  setClusterScaleTimeout(() => {
+  setBrokerClusterScaleTimeout(() => {
     invokeRPCOnAllInstances(agcWorkerSockets, 'agcBrokerLeaveCluster', getAGCBrokerClusterState());
   }, CLUSTER_SCALE_BACK_DELAY);
 
@@ -115,6 +153,10 @@ let agcBrokerLeaveCluster = function (socket, req) {
 
 let agcWorkerLeaveCluster = function (socket, req) {
   delete agcWorkerSockets[socket.id];
+  setWorkerClusterScaleTimeout(() => {
+    invokeRPCOnAllInstances(agcWorkerSockets, 'agcWorkerLeaveCluster', getAGCWorkerClusterState());
+  }, CLUSTER_SCALE_BACK_DELAY);
+
   if (req) {
     req.end();
   }
@@ -217,7 +259,7 @@ agServer.setMiddleware(agServer.MIDDLEWARE_HANDSHAKE, async (middlewareStream) =
         socket.instanceSecure = data.instanceSecure;
         agcBrokerSockets[socket.id] = socket;
 
-        setClusterScaleTimeout(() => {
+        setBrokerClusterScaleTimeout(() => {
           invokeRPCOnAllInstances(agcWorkerSockets, 'agcBrokerJoinCluster', getAGCBrokerClusterState());
         }, CLUSTER_SCALE_OUT_DELAY);
 
@@ -234,6 +276,7 @@ agServer.setMiddleware(agServer.MIDDLEWARE_HANDSHAKE, async (middlewareStream) =
 
     (async () => {
       for await (let req of socket.procedure('agcWorkerJoinCluster')) {
+        let socketId = socket.id;
         let data = req.data || {};
         socket.instanceId = data.instanceId;
         socket.instanceIp = getRemoteIp(socket, data);
@@ -243,16 +286,28 @@ agServer.setMiddleware(agServer.MIDDLEWARE_HANDSHAKE, async (middlewareStream) =
         }
 
         if (!serverReady) {
-          logWarning(`The agc-worker instance ${data.instanceId} at address ${socket.instanceIp} on socket ${socket.id} was not allowed to join the cluster because the server is waiting for initial brokers`);
+          logWarning(`The agc-worker instance ${data.instanceId} at address ${socket.instanceIp} on socket ${socketId} was not allowed to join the cluster because the server is waiting for initial brokers`);
           req.error(
             new Error('The server is waiting for initial broker connections')
           );
           continue;
         }
 
-        agcWorkerSockets[socket.id] = socket;
-        req.end(getAGCBrokerClusterState());
-        logInfo(`The agc-worker instance ${data.instanceId} at address ${socket.instanceIp} joined the cluster on socket ${socket.id}`);
+        agcWorkerSockets[socketId] = socket;
+
+        setWorkerClusterScaleTimeout(() => {
+          let workerClusterState = getAGCWorkerClusterState();
+          Object.keys(agcWorkerSockets).forEach((targetSocketId) => {
+            if (targetSocketId === socketId) {
+              return;
+            }
+            let targetSocket = agcWorkerSockets[targetSocketId];
+            invokeRPCOnInstance(targetSocket, 'agcWorkerJoinCluster', workerClusterState);
+          });
+        }, CLUSTER_SCALE_OUT_DELAY);
+
+        req.end(getAGCClusterState());
+        logInfo(`The agc-worker instance ${data.instanceId} at address ${socket.instanceIp} joined the cluster on socket ${socketId}`);
       }
     })();
 
