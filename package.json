@@ -1,6 +1,6 @@
 {
   "name": "agc-state",
-  "version": "5.3.2",
+  "version": "5.4.0",
   "description": "State tracking and notification engine for Asyngular clusters.",
   "main": "server.js",
   "scripts": {
