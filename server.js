@@ -164,6 +164,9 @@ let agcWorkerLeaveCluster = function (socket, req) {
 };
 
 let invokeRPCOnInstance = async function (socket, procedureName, data) {
+  if (data) {
+    data.agcSourceWorkerURI = getInstanceURI(socket);
+  }
   try {
     await socket.invoke(procedureName, data);
   } catch (err) {
@@ -306,7 +309,9 @@ agServer.setMiddleware(agServer.MIDDLEWARE_HANDSHAKE, async (middlewareStream) =
           });
         }, CLUSTER_SCALE_OUT_DELAY);
 
-        req.end(getAGCClusterState());
+        let clusterState = getAGCClusterState();
+        clusterState.agcSourceWorkerURI = getInstanceURI(socket);
+        req.end(clusterState);
         logInfo(`The agc-worker instance ${data.instanceId} at address ${socket.instanceIp} joined the cluster on socket ${socketId}`);
       }
     })();
