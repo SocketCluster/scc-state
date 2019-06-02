@@ -1,7 +1,7 @@
 FROM node:10-slim
 MAINTAINER Jonathan Gros-Dubois
 
-LABEL version="5.3.2"
+LABEL version="6.0.0"
 LABEL description="Docker file for AGC State Server"
 
 RUN mkdir -p /usr/src/
