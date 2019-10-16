@@ -224,7 +224,7 @@ scServer.on('connection', function (socket) {
 
     sccWorkerSockets[socket.id] = socket;
     respond(null, getSCCBrokerClusterState());
-    logInfo(`The scc-worker instance ${data.instanceId} at address ${socket.instanceIp} joined the cluster on socket ${socket.id}`);
+    logInfo(`The scc-worker instance ${data.instanceId} at address ${socket.instanceIp} on port ${socket.instancePort} joined the cluster on socket ${socket.id}`);
   });
 
   socket.on('sccWorkerLeaveCluster', function (respond) {
