@@ -113,7 +113,7 @@ var sccBrokerLeaveCluster = function (socket, respond) {
 var sccWorkerLeaveCluster = function (socket, respond) {
   delete sccWorkerSockets[socket.id];
   respond && respond();
-  logInfo(`The scc-worker instance ${socket.instanceId} at address ${socket.instanceIp} left the cluster on socket ${socket.id}`);
+  logInfo(`The scc-worker instance ${socket.instanceId} at address ${socket.instanceIp} on port ${socket.instancePort} left the cluster on socket ${socket.id}`);
 };
 
 var sendEventToInstance = function (socket, event, data) {
