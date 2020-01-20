@@ -1,10 +1,10 @@
-# agc-state
-Cluster state tracking and notification engine for Asyngular clusters
+# scc-state
+Cluster state tracking and notification engine for SCC.
 
 ### Usage
 
 ```js
-AGC_STATE_LOG_LEVEL=0 node server.js
+SCC_STATE_LOG_LEVEL=0 node server.js
 ```
 
 ### Log levels
@@ -19,9 +19,9 @@ AGC_STATE_LOG_LEVEL=0 node server.js
 Replace `x.x.x` with the version number.
 
 ```
-docker build -t socketcluster/agc-state:vx.x.x .
+docker build -t socketcluster/scc-state:vx.x.x .
 ```
 
 ```
-docker push socketcluster/agc-state:vx.x.x
+docker push socketcluster/scc-state:vx.x.x
 ```

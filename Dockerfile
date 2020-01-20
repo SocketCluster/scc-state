@@ -1,8 +1,8 @@
 FROM node:10-slim
 MAINTAINER Jonathan Gros-Dubois
 
-LABEL version="6.0.0"
-LABEL description="Docker file for AGC State Server"
+LABEL version="7.0.0"
+LABEL description="Docker file for SCC State Server"
 
 RUN mkdir -p /usr/src/
 WORKDIR /usr/src/
