@@ -52,7 +52,18 @@ let agServer = socketClusterServer.attach(httpServer);
   for await (let [req, res] of httpServer.listener('request')) {
     if (req.url === '/health-check') {
       res.writeHead(200, {'Content-Type': 'text/html'});
-      res.end('OK');
+      res.end("OK")
+    }
+    else if (req.url === '/status') {
+      res.writeHead(200, {'Content-Type': 'text/html'});
+      let statusObj = getSCCClusterState();
+      let status = {};
+
+      status.workers = statusObj.sccWorkerURIs;
+      status.brokers = statusObj.sccBrokerURIs;
+      status.time = statusObj.time;
+
+      res.end(JSON.stringify(status));
     } else {
       res.writeHead(404, {'Content-Type': 'text/html'});
       res.end('Not found');
