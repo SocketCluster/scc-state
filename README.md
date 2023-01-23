@@ -4,7 +4,7 @@ Cluster state tracking and notification engine for SCC.
 ### Usage
 
 ```js
-SCC_STATE_LOG_LEVEL=0 node server.js
+SCC_STATE_LOG_LEVEL=1 node server.js
 ```
 
 ### Log levels
