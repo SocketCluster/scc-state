@@ -1,6 +1,6 @@
 {
   "name": "scc-state",
-  "version": "9.2.0",
+  "version": "9.3.0",
   "description": "State tracking and notification engine for SCC.",
   "main": "server.js",
   "scripts": {
