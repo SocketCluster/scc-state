@@ -23,7 +23,7 @@
   },
   "homepage": "https://github.com/SocketCluster/scc-state",
   "dependencies": {
-    "socketcluster-server": "^19.0.1",
+    "socketcluster-server": "^20.0.0",
     "eetase": "^7.0.0"
   }
 }
