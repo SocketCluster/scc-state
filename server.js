@@ -1,7 +1,6 @@
 const http = require('http');
 const socketClusterServer = require('socketcluster-server');
 const Action = require('socketcluster-server/action');
-const url = require('url');
 const semverRegex = /\d+\.\d+\.\d+/;
 const eetase = require('eetase');
 const packageVersion = require(`./package.json`).version;
@@ -205,8 +204,8 @@ agServer.setMiddleware(agServer.MIDDLEWARE_HANDSHAKE, async (middlewareStream) =
   for await (let action of middlewareStream) {
     if (action.type === Action.HANDSHAKE_WS) {
       if (SCC_AUTH_KEY) {
-        let urlParts = url.parse(action.request.url, true);
-        if (!urlParts.query || urlParts.query.authKey !== SCC_AUTH_KEY) {
+        let query = getRequestQuery(action.request.url);
+        if (query.authKey !== SCC_AUTH_KEY) {
           let err = new Error('Cannot connect to the scc-state instance without providing a valid authKey as a URL query argument.');
           err.name = 'BadClusterAuthError';
           action.block(err);
@@ -218,8 +217,7 @@ agServer.setMiddleware(agServer.MIDDLEWARE_HANDSHAKE, async (middlewareStream) =
 
     if (action.type === Action.HANDSHAKE_SC) {
       let remoteAddress = action.socket.remoteAddress;
-      let urlParts = url.parse(action.socket.request.url, true);
-      let { version, instanceType, instancePort } = urlParts.query;
+      let { version, instanceType, instancePort } = getRequestQuery(action.socket.request.url);
 
       action.socket.instanceType = instanceType;
       action.socket.instancePort = instancePort;
@@ -358,6 +356,17 @@ function logInfo(info) {
   if (LOG_LEVEL >= 3) {
     console.info(info);
   }
+}
+
+function getRequestQuery(requestUrl) {
+  let parsedUrl;
+  try {
+    // Request URLs are origin-relative, so a base needs to be provided.
+    parsedUrl = new URL(requestUrl, 'http://localhost');
+  } catch (error) {
+    return {};
+  }
+  return Object.fromEntries(parsedUrl.searchParams);
 }
 
 function getMajorSemver(semver) {
