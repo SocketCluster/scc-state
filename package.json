@@ -1,6 +1,6 @@
 {
   "name": "scc-state",
-  "version": "10.0.1",
+  "version": "11.0.0",
   "description": "State tracking and notification engine for SCC.",
   "main": "server.js",
   "scripts": {
@@ -23,7 +23,7 @@
   },
   "homepage": "https://github.com/SocketCluster/scc-state",
   "dependencies": {
-    "socketcluster-server": "^20.0.0",
-    "eetase": "^7.0.0"
+    "socketcluster-server": "^21.0.2",
+    "eetase": "^7.1.0"
   }
 }
